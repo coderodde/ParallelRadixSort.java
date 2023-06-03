@@ -39,13 +39,13 @@ public final class ParallelRadixSort {
      * The array slices smaller than this number of elements will be sorted with
      * merge sort.
      */
-    private static final int MERGESORT_THRESHOLD = 4096;
+    static final int MERGESORT_THRESHOLD = 4096;
     
     /**
      * The array slices smaller than this number of elements will be sorted with
      * insertion sort.
      */
-    private static final int INSERTION_SORT_THRESHOLD = 16;
+    static final int INSERTION_SORT_THRESHOLD = 16;
     
     /**
      * The minimum workload for a thread.
@@ -60,11 +60,27 @@ public final class ParallelRadixSort {
         rangeCheck(array.length, fromIndex, toIndex);
         
         int rangeLength = toIndex - fromIndex;
-        int[] buffer = 
-                Arrays.copyOfRange(
-                        array, 
-                        fromIndex,
-                        toIndex);
+        
+        if (rangeLength < 2) {
+            return;
+        }
+        
+        int[] buffer = new int[rangeLength];
+        
+        int threads = 
+                Math.min(
+                        Runtime.getRuntime().availableProcessors(), 
+                        rangeLength / THREAD_THRESHOLD);
+        
+        threads = Math.max(threads, 1);
+        
+        parallelRadixSortImpl(
+                array, 
+                buffer, 
+                threads, 
+                0, 
+                fromIndex, 
+                toIndex);
         
         if (rangeLength <= MERGESORT_THRESHOLD) {
             mergesort(
@@ -75,6 +91,68 @@ public final class ParallelRadixSort {
                     rangeLength,
                     MOST_SIGNIFICANT_BYTE_INDEX);
             return;
+        }
+    }
+    
+    private static void parallelRadixSortImpl(
+                int[] source, 
+                int[] target,
+                int sourceFromIndex,
+                int targetFromIndex,
+                int rangeLength,
+                int threads,
+                int byteIndex) {
+        if (rangeLength <= MERGESORT_THRESHOLD) {
+            mergesort(source, 
+                      target, 
+                      sourceFromIndex, 
+                      targetFromIndex, 
+                      rangeLength,
+                      byteIndex);
+            
+            return;
+        }
+        
+        if (threads == 1) {
+            radixSortImpl(
+                    source, 
+                    target, 
+                    sourceFromIndex, 
+                    targetFromIndex, 
+                    rangeLength, 
+                    byteIndex);
+            
+            return;
+        }
+    }   
+    
+    private static void radixSortImpl(int[] source,
+                                      int[] target,
+                                      int sourceFromIndex,
+                                      int targetFromIndex,
+                                      int rangeLength,
+                                      int byteIndex) {
+        
+        if (rangeLength <= MERGESORT_THRESHOLD) {
+            mergesort(source, 
+                      target, 
+                      sourceFromIndex, 
+                      targetFromIndex, 
+                      rangeLength,
+                      byteIndex);
+            
+            return;
+        }
+        
+        int[] bucketSizeMap = new int[BUCKETS];
+        int[] processedMap  = new int[BUCKETS];
+        int[] startIndexMap = new int[BUCKETS];
+        
+        for (int i = sourceFromIndex, 
+                sourceToIndex = sourceFromIndex + rangeLength; 
+                i != sourceToIndex; 
+                i++) {
+            
         }
     }
     
@@ -117,8 +195,55 @@ public final class ParallelRadixSort {
         }
         
         int[] bucketSizeMap = new int[BUCKETS];
-        int[] processedMap  = new int[BUCKETS];
         int[] startIndexMap = new int[BUCKETS];
+        
+        int sourceToIndex = sourceFromIndex + rangeLength;
+        
+        // Find out the size of each bucket:
+        for (int i = sourceFromIndex; 
+                i != sourceToIndex; 
+                i++) {
+            bucketSizeMap[getBucketIndex(source[i], byteIndex)]++;
+        }
+        
+        // Start computin the map mapping each bucket key to the index in the 
+        // source array at which the key appears:
+        startIndexMap[0] = sourceFromIndex;
+        
+        for (int i = 1; i != BUCKETS; i++) {
+            startIndexMap[i] = startIndexMap[i - 1] 
+                             + bucketSizeMap[i - 1];
+        }
+        
+        // Insert each element to its own bucket:
+        for (int i = sourceFromIndex; i != sourceToIndex; i++) {
+            int datum = source[i];
+            int bucketKey = getBucketIndex(datum, byteIndex);
+            target[startIndexMap[bucketKey]++] = datum;
+        }
+        
+        if (byteIndex == MOST_SIGNIFICANT_BYTE_INDEX) {
+            System.arraycopy(
+                    target, 
+                    targetFromIndex, 
+                    source, 
+                    sourceFromIndex,
+                    rangeLength);
+            
+            return;
+        }
+        
+        for (int i = 0; i != BUCKETS; i++) {
+            if (bucketSizeMap[i] != 0) {
+                parallelRadixSortImpl(
+                        target,
+                        source,
+                        targetFromIndex,
+                        sourceFromIndex,
+                        rangeLength,
+                        byteIndex);
+            }
+        }
     }
     
     private static void parallelRadixSortImpl(int[] source,
@@ -184,8 +309,9 @@ public final class ParallelRadixSort {
                         targetIndex);
             }
 
-            if (runIndex != runs) { // TODO: Beware !=
-                System.arraycopy( // TODO: check 
+            if (runIndex != runs) { 
+                // Move a lonely, leftover run to the target array:
+                System.arraycopy( 
                         s,
                         sourceFromIndex + runIndex * runWidth,
                         t,
@@ -194,14 +320,20 @@ public final class ParallelRadixSort {
             }
 
             runs = (runs / 2) + (runs % 2 == 0 ? 0 : 1);
+            
+            // Alternate the array roles:
             int[] temp = s;
             s = t;
             t = temp;
+            
+            // Extend the run width:
             runWidth *= 2;
         }
         
         boolean even = (passes % 2 == 0);
         
+        // Make sure that the entire sorted range ends up in the actual array to
+        // sort:
         if (byteIndex % 2 == 1) {
             if (even) {
                 System.arraycopy(
