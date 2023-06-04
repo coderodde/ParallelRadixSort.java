@@ -77,21 +77,22 @@ public final class ParallelRadixSort {
         parallelRadixSortImpl(
                 array, 
                 buffer, 
-                threads, 
-                0, 
-                fromIndex, 
-                toIndex);
+                fromIndex,
+                0,
+                rangeLength,
+                threads,
+                MOST_SIGNIFICANT_BYTE_INDEX);
         
-        if (rangeLength <= MERGESORT_THRESHOLD) {
-            mergesort(
-                    buffer, 
-                    array, 
-                    0, 
-                    fromIndex, 
-                    rangeLength,
-                    MOST_SIGNIFICANT_BYTE_INDEX);
-            return;
-        }
+//        if (rangeLength <= MERGESORT_THRESHOLD) {
+//            mergesort(
+//                    buffer, 
+//                    array, 
+//                    0, 
+//                    fromIndex, 
+//                    rangeLength,
+//                    MOST_SIGNIFICANT_BYTE_INDEX);
+//            return;
+//        }
     }
     
     private static void parallelRadixSortImpl(
