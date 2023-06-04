@@ -1,7 +1,4 @@
 package com.github.coderodde.util;
-
-import java.util.Arrays;
-
 /**
  *
  * @author Rodion "rodde" Efremov
@@ -65,6 +62,11 @@ public final class ParallelRadixSort {
             return;
         }
         
+        if (rangeLength <= INSERTION_SORT_THRESHOLD) {
+            insertionSort(array, fromIndex, rangeLength);
+            return;
+        }
+        
         int[] buffer = new int[rangeLength];
         
         int threads = 
@@ -77,21 +79,11 @@ public final class ParallelRadixSort {
         parallelRadixSortImpl(
                 array, 
                 buffer, 
-                threads, 
-                0, 
                 fromIndex, 
-                toIndex);
-        
-        if (rangeLength <= MERGESORT_THRESHOLD) {
-            mergesort(
-                    buffer, 
-                    array, 
-                    0, 
-                    fromIndex, 
-                    rangeLength,
-                    MOST_SIGNIFICANT_BYTE_INDEX);
-            return;
-        }
+                0, 
+                rangeLength, 
+                MOST_SIGNIFICANT_BYTE_INDEX,
+                threads);
     }
     
     private static void parallelRadixSortImpl(
@@ -100,8 +92,8 @@ public final class ParallelRadixSort {
                 int sourceFromIndex,
                 int targetFromIndex,
                 int rangeLength,
-                int threads,
-                int byteIndex) {
+                int byteIndex,
+                int threads) {
         if (rangeLength <= MERGESORT_THRESHOLD) {
             mergesort(source, 
                       target, 
@@ -124,36 +116,6 @@ public final class ParallelRadixSort {
             
             return;
         }
-    }   
-    
-    private static void radixSortImpl(int[] source,
-                                      int[] target,
-                                      int sourceFromIndex,
-                                      int targetFromIndex,
-                                      int rangeLength,
-                                      int byteIndex) {
-        
-        if (rangeLength <= MERGESORT_THRESHOLD) {
-            mergesort(source, 
-                      target, 
-                      sourceFromIndex, 
-                      targetFromIndex, 
-                      rangeLength,
-                      byteIndex);
-            
-            return;
-        }
-        
-        int[] bucketSizeMap = new int[BUCKETS];
-        int[] processedMap  = new int[BUCKETS];
-        int[] startIndexMap = new int[BUCKETS];
-        
-        for (int i = sourceFromIndex, 
-                sourceToIndex = sourceFromIndex + rangeLength; 
-                i != sourceToIndex; 
-                i++) {
-            
-        }
     }
     
     private static void rangeCheck(
@@ -175,12 +137,12 @@ public final class ParallelRadixSort {
         }
     }
     
-    private static void parallelRadixSortImpl(int[] source,
-                                              int[] target,
-                                              int sourceFromIndex,
-                                              int targetFromIndex,
-                                              int rangeLength,
-                                              int byteIndex) {
+    private static void radixSortImpl(int[] source,
+                                      int[] target,
+                                      int sourceFromIndex,
+                                      int targetFromIndex,
+                                      int rangeLength,
+                                      int byteIndex) {
         
         if (rangeLength <= MERGESORT_THRESHOLD) {
             mergesort(
@@ -235,7 +197,7 @@ public final class ParallelRadixSort {
         
         for (int i = 0; i != BUCKETS; i++) {
             if (bucketSizeMap[i] != 0) {
-                parallelRadixSortImpl(
+                radixSortImpl(
                         target,
                         source,
                         targetFromIndex,
@@ -246,20 +208,21 @@ public final class ParallelRadixSort {
         }
     }
     
-    private static void parallelRadixSortImpl(int[] source,
-                                              int[] target,
-                                              int recursionDepth,
-                                              int fromIndex,
-                                              int toIndex) {
-        
-    }
-    
     private static void mergesort(int[] source,
                                   int[] target,
                                   int sourceFromIndex,
                                   int targetFromIndex,
                                   int rangeLength,
                                   int byteIndex) {
+        if (rangeLength <= INSERTION_SORT_THRESHOLD) {
+            insertionSort(
+                    source, 
+                    sourceFromIndex, 
+                    rangeLength);
+            
+            return;
+        }
+        
         int offset = sourceFromIndex;
         int[] s = source;
         int[] t = target;
@@ -363,7 +326,7 @@ public final class ParallelRadixSort {
             int datum = array[i];
             int j = i - 1;
             
-            while (j >= 0 && array[j] > datum) {
+            while (j >= offset && array[j] > datum) {
                 array[j + 1] = array[j];
                 --j;
             }

@@ -22,7 +22,6 @@ public final class ParallelRadixSortTest {
         ParallelRadixSort.parallelSort(array2, FROM_INDEX, TO_INDEX);
         
         assertTrue(Arrays.equals(array1, array2));
-        
     }
         
     @Test
