@@ -93,8 +93,8 @@ public final class ParallelRadixSort {
                 buffer, 
                 fromIndex, 
                 0, 
-                rangeLength, 
-                MOST_SIGNIFICANT_BYTE_INDEX,
+                rangeLength,
+                0,
                 threads);
     }
     
@@ -186,6 +186,7 @@ public final class ParallelRadixSort {
         
         int[] bucketSizeMap = new int[BUCKETS];
         int[] startIndexMap = new int[BUCKETS];
+        int[] processedMap  = new int[BUCKETS];
         
         int sourceToIndex = sourceFromIndex + rangeLength;
         
@@ -198,7 +199,7 @@ public final class ParallelRadixSort {
         
         // Start computin the map mapping each bucket key to the index in the 
         // source array at which the key appears:
-        startIndexMap[0] = sourceFromIndex;
+        startIndexMap[0] = targetFromIndex;
         
         for (int i = 1; i != BUCKETS; i++) {
             startIndexMap[i] = startIndexMap[i - 1] 
@@ -209,7 +210,10 @@ public final class ParallelRadixSort {
         for (int i = sourceFromIndex; i != sourceToIndex; i++) {
             int datum = source[i];
             int bucketKey = getBucketIndex(datum, recursionDepth);
-            target[startIndexMap[bucketKey]++] = datum;
+            
+            target[
+                startIndexMap[bucketKey] + 
+                processedMap [bucketKey]++] = datum;
         }
         
         if (recursionDepth == MOST_SIGNIFICANT_BYTE_INDEX) {
@@ -228,10 +232,10 @@ public final class ParallelRadixSort {
                 radixSortImpl(
                         target,
                         source,
-                        targetFromIndex,
-                        sourceFromIndex,
-                        rangeLength,
-                        recursionDepth);
+                        startIndexMap[i],
+                        startIndexMap[i] + bucketSizeMap[i],
+                        bucketSizeMap[i],
+                        recursionDepth + 1);
             }
         }
     }
@@ -299,9 +303,9 @@ public final class ParallelRadixSort {
                 // Move a lonely, leftover run to the target array:
                 System.arraycopy( 
                         s,
-                        sourceFromIndex + runIndex * runWidth,
+                        sFromIndex + runIndex * runWidth,
                         t,
-                        targetFromIndex + runIndex * runWidth,
+                        tFromIndex + runIndex * runWidth,
                         rangeLength - runIndex * runWidth);
             }
 
@@ -327,18 +331,18 @@ public final class ParallelRadixSort {
         if (recursionDepth % 2 == 1) {
             if (even) {
                 System.arraycopy(
-                        s, 
-                        sourceFromIndex, 
                         t, 
-                        targetFromIndex,
+                        tFromIndex, 
+                        s, 
+                        sFromIndex,
                         rangeLength);
             }
         } else if (!even) {
             System.arraycopy(
-                    t, 
-                    targetFromIndex,
                     s, 
-                    sourceFromIndex,
+                    sFromIndex,
+                    t, 
+                    tFromIndex,
                     rangeLength);
         } 
     }
@@ -405,10 +409,10 @@ public final class ParallelRadixSort {
                 rightIndexBound - rightIndex);
     }
     
-    private static int getBucketIndex(int element, int recursionDepth) {
-        return ((recursionDepth == MOST_SIGNIFICANT_BYTE_INDEX ? 
-                 element ^ SIGN_BIT_MASK :
-                 element) >>> (recursionDepth * BITS_PER_BYTE)) 
-                            & EXTRACT_BYTE_MASK;
+    static int getBucketIndex(int element, int recursionDepth) {
+        return ((recursionDepth == 0 ? element ^ SIGN_BIT_MASK : element)
+            >>> ((MOST_SIGNIFICANT_BYTE_INDEX - recursionDepth) 
+                  * BITS_PER_BYTE)) 
+                  & EXTRACT_BYTE_MASK;
     }
 }
