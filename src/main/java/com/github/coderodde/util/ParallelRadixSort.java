@@ -69,6 +69,18 @@ public final class ParallelRadixSort {
         
         int[] buffer = new int[rangeLength];
         
+        if (rangeLength <= MERGESORT_THRESHOLD) {
+            mergesort(
+                    array, 
+                    buffer, 
+                    fromIndex,
+                    0, 
+                    rangeLength, 
+                    0);
+            
+            return;
+        }
+        
         int threads = 
                 Math.min(
                         Runtime.getRuntime().availableProcessors(), 
@@ -92,18 +104,19 @@ public final class ParallelRadixSort {
                 int sourceFromIndex,
                 int targetFromIndex,
                 int rangeLength,
-                int byteIndex,
+                int recursionDepth,
                 int threads) {
-        if (rangeLength <= MERGESORT_THRESHOLD) {
-            mergesort(source, 
-                      target, 
-                      sourceFromIndex, 
-                      targetFromIndex, 
-                      rangeLength,
-                      byteIndex);
-            
-            return;
-        }
+        // TODO: Remove?
+//        if (rangeLength <= MERGESORT_THRESHOLD) {
+//            mergesort(source, 
+//                      target, 
+//                      sourceFromIndex, 
+//                      targetFromIndex, 
+//                      rangeLength,
+//                      recursionDepth);
+//            
+//            return;
+//        }
         
         if (threads == 1) {
             radixSortImpl(
@@ -112,7 +125,7 @@ public final class ParallelRadixSort {
                     sourceFromIndex, 
                     targetFromIndex, 
                     rangeLength, 
-                    byteIndex);
+                    recursionDepth);
             
             return;
         }
@@ -137,12 +150,27 @@ public final class ParallelRadixSort {
         }
     }
     
+    /**
+     * Sorts the range 
+     * {@code <source[sourceFromIndex], ..., source[sourceFromIndex + rangeLength - 1>}
+     * and stores the result in 
+     * {@code <target[targetFromIndex], ..., target[targetFromIndex + rangeLength -l>}.
+     * 
+     * @param source          the source array.
+     * @param target          the target array.
+     * @param sourceFromIndex the starting index of the range to sort in 
+     *                        {@code source}.
+     * @param targetFromIndex the starting index of the range to put the result
+     *                        in.
+     * @param rangeLength     the length of the range to sort.
+     * @param recursionDepth       the recursion depth.
+     */
     private static void radixSortImpl(int[] source,
                                       int[] target,
                                       int sourceFromIndex,
                                       int targetFromIndex,
                                       int rangeLength,
-                                      int byteIndex) {
+                                      int recursionDepth) {
         
         if (rangeLength <= MERGESORT_THRESHOLD) {
             mergesort(
@@ -151,7 +179,7 @@ public final class ParallelRadixSort {
                     sourceFromIndex, 
                     targetFromIndex, 
                     rangeLength, 
-                    byteIndex);
+                    recursionDepth);
             
             return;
         }
@@ -165,7 +193,7 @@ public final class ParallelRadixSort {
         for (int i = sourceFromIndex; 
                 i != sourceToIndex; 
                 i++) {
-            bucketSizeMap[getBucketIndex(source[i], byteIndex)]++;
+            bucketSizeMap[getBucketIndex(source[i], recursionDepth)]++;
         }
         
         // Start computin the map mapping each bucket key to the index in the 
@@ -180,11 +208,11 @@ public final class ParallelRadixSort {
         // Insert each element to its own bucket:
         for (int i = sourceFromIndex; i != sourceToIndex; i++) {
             int datum = source[i];
-            int bucketKey = getBucketIndex(datum, byteIndex);
+            int bucketKey = getBucketIndex(datum, recursionDepth);
             target[startIndexMap[bucketKey]++] = datum;
         }
         
-        if (byteIndex == MOST_SIGNIFICANT_BYTE_INDEX) {
+        if (recursionDepth == MOST_SIGNIFICANT_BYTE_INDEX) {
             System.arraycopy(
                     target, 
                     targetFromIndex, 
@@ -203,7 +231,7 @@ public final class ParallelRadixSort {
                         targetFromIndex,
                         sourceFromIndex,
                         rangeLength,
-                        byteIndex);
+                        recursionDepth);
             }
         }
     }
@@ -213,19 +241,13 @@ public final class ParallelRadixSort {
                                   int sourceFromIndex,
                                   int targetFromIndex,
                                   int rangeLength,
-                                  int byteIndex) {
-        if (rangeLength <= INSERTION_SORT_THRESHOLD) {
-            insertionSort(
-                    source, 
-                    sourceFromIndex, 
-                    rangeLength);
-            
-            return;
-        }
+                                  int recursionDepth) {
         
         int offset = sourceFromIndex;
         int[] s = source;
         int[] t = target;
+        int sFromIndex = sourceFromIndex;
+        int tFromIndex = targetFromIndex;
         int runs = rangeLength / INSERTION_SORT_THRESHOLD;
         
         for (int i = 0; i != runs; ++i) {
@@ -250,18 +272,19 @@ public final class ParallelRadixSort {
         
         int runWidth = INSERTION_SORT_THRESHOLD;
         int passes = 0;
-        int targetIndex = targetFromIndex;
         
         while (runs != 1) {
             passes++;
             int runIndex = 0;
             
             for (; runIndex < runs - 1; runIndex += 2) {
-                int leftIndex = sourceFromIndex + runIndex * runWidth;
+                int leftIndex = sFromIndex + runIndex * runWidth;
                 int leftIndexBound = leftIndex + runWidth;
                 int rightIndexBound =
                         Math.min(leftIndexBound + runWidth,
-                                 sourceFromIndex + rangeLength);
+                                 sFromIndex + rangeLength);
+                
+                int targetIndex = tFromIndex + runIndex * runWidth;
                 
                 merge(
                         s,
@@ -289,6 +312,10 @@ public final class ParallelRadixSort {
             s = t;
             t = temp;
             
+            int tempFromIndex = sFromIndex;
+            sFromIndex = tFromIndex;
+            tFromIndex = tempFromIndex;
+            
             // Extend the run width:
             runWidth *= 2;
         }
@@ -297,7 +324,7 @@ public final class ParallelRadixSort {
         
         // Make sure that the entire sorted range ends up in the actual array to
         // sort:
-        if (byteIndex % 2 == 1) {
+        if (recursionDepth % 2 == 1) {
             if (even) {
                 System.arraycopy(
                         s, 
@@ -335,6 +362,19 @@ public final class ParallelRadixSort {
         }
     }
     
+    /**
+     * Merges the runs 
+     * {@code source[leftIndex], ..., source[leftIndexBound - 1]} and
+     * {@code source[leftBoundIndex, ..., source[rightIndexBound - 1]} into one
+     * sorted run.
+     * 
+     * @param source          the source array.
+     * @param target          the target array.
+     * @param leftIndex       the lowest index of the left run to merge.
+     * @param leftIndexBound  the lowest index of the right run to merge.
+     * @param rightIndexBound the one past last index of the right run to merge.
+     * @param targetIndex     the starting index of the resulting, merged run.
+     */
     private static void merge(int[] source,
                               int[] target,
                               int leftIndex,
@@ -365,9 +405,10 @@ public final class ParallelRadixSort {
                 rightIndexBound - rightIndex);
     }
     
-    private static int getBucketIndex(int element, int byteIndex) {
-        return ((byteIndex == MOST_SIGNIFICANT_BYTE_INDEX ? 
+    private static int getBucketIndex(int element, int recursionDepth) {
+        return ((recursionDepth == MOST_SIGNIFICANT_BYTE_INDEX ? 
                  element ^ SIGN_BIT_MASK :
-                 element) >>> (byteIndex * BITS_PER_BYTE)) & EXTRACT_BYTE_MASK;
+                 element) >>> (recursionDepth * BITS_PER_BYTE)) 
+                            & EXTRACT_BYTE_MASK;
     }
 }
