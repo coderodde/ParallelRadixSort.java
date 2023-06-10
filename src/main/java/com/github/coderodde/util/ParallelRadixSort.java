@@ -36,18 +36,48 @@ public final class ParallelRadixSort {
      * The array slices smaller than this number of elements will be sorted with
      * merge sort.
      */
-    static final int MERGESORT_THRESHOLD = 4096;
+    static final int DEFAULT_MERGESORT_THRESHOLD = 4096;
     
     /**
      * The array slices smaller than this number of elements will be sorted with
      * insertion sort.
      */
-    static final int INSERTION_SORT_THRESHOLD = 16;
+    static final int DEFAULT_INSERTION_SORT_THRESHOLD = 16;
     
     /**
      * The minimum workload for a thread.
      */
-    private static final int THREAD_THRESHOLD = 65536;
+    private static final int DEFAULT_THREAD_THRESHOLD = 65536;
+    
+    private static final int MINIMUM_MERGESORT_THRESHOLD = 61;
+    private static final int MINIMUM_INSERTION_SORT_THRESHOLD = 7;
+    private static final int MINIMUM_THREAD_WORKLOAD = 4001;
+    
+    private static int insertionSortThreshold = DEFAULT_INSERTION_SORT_THRESHOLD;
+    private static int mergesortThreshold = DEFAULT_MERGESORT_THRESHOLD;
+    private static int threadWorkload = DEFAULT_THREAD_THRESHOLD;
+    
+    public static void setInsertionSortThreshold(
+            int newInsertionSortThreshold) {
+        insertionSortThreshold = 
+                Math.max(
+                        newInsertionSortThreshold, 
+                        MINIMUM_INSERTION_SORT_THRESHOLD);
+    }
+    
+    public static void setMergesortThreshold(int newMergesortThreshold) {
+        mergesortThreshold = 
+                Math.max(
+                    newMergesortThreshold,
+                    MINIMUM_MERGESORT_THRESHOLD);
+    }
+    
+    public static void setThreadWorkload(int newThreadWorkload) {
+        threadWorkload = 
+                Math.max(
+                        MINIMUM_THREAD_WORKLOAD,
+                        newThreadWorkload);
+    }
     
     public static void parallelSort(int[] array) {
         parallelSort(array, 0, array.length);
@@ -62,14 +92,14 @@ public final class ParallelRadixSort {
             return;
         }
         
-        if (rangeLength <= INSERTION_SORT_THRESHOLD) {
+        if (rangeLength <= insertionSortThreshold) {
             insertionSort(array, fromIndex, rangeLength);
             return;
         }
         
         int[] buffer = new int[rangeLength];
         
-        if (rangeLength <= MERGESORT_THRESHOLD) {
+        if (rangeLength <= mergesortThreshold) {
             mergesort(
                     array, 
                     buffer, 
@@ -84,7 +114,7 @@ public final class ParallelRadixSort {
         int threads = 
                 Math.min(
                         Runtime.getRuntime().availableProcessors(), 
-                        rangeLength / THREAD_THRESHOLD);
+                        rangeLength / threadWorkload);
         
         threads = Math.max(threads, 1);
         
@@ -172,7 +202,7 @@ public final class ParallelRadixSort {
                                       int rangeLength,
                                       int recursionDepth) {
         
-        if (rangeLength <= MERGESORT_THRESHOLD) {
+        if (rangeLength <= mergesortThreshold) {
             mergesort(
                     source, 
                     target, 
@@ -252,18 +282,17 @@ public final class ParallelRadixSort {
         int[] t = target;
         int sFromIndex = sourceFromIndex;
         int tFromIndex = targetFromIndex;
-        int runs = rangeLength / INSERTION_SORT_THRESHOLD;
+        int runs = rangeLength / insertionSortThreshold;
         
         for (int i = 0; i != runs; ++i) {
-            insertionSort(
-                    source,
+            insertionSort(source,
                     offset, 
-                    INSERTION_SORT_THRESHOLD);
+                    insertionSortThreshold);
             
-            offset += INSERTION_SORT_THRESHOLD;
+            offset += insertionSortThreshold;
        }
         
-        if (rangeLength % INSERTION_SORT_THRESHOLD != 0) {
+        if (rangeLength % insertionSortThreshold != 0) {
             // Sort the rightmost run that is smaller than 
             // INSERTION_SORT_THRESHOLD elements.
             insertionSort(
@@ -274,7 +303,7 @@ public final class ParallelRadixSort {
             runs++;
         }
         
-        int runWidth = INSERTION_SORT_THRESHOLD;
+        int runWidth = insertionSortThreshold;
         int passes = 0;
         
         while (runs != 1) {

@@ -73,7 +73,7 @@ public final class ParallelRadixSortTest {
        for (int iteration = 0; iteration < ITERATIONS; iteration++) {
            int arrayLength = 
                    random.nextInt(
-                           ParallelRadixSort.INSERTION_SORT_THRESHOLD + 1);
+                           ParallelRadixSort.DEFAULT_INSERTION_SORT_THRESHOLD + 1);
            
            int[] array1 = Utils.createRandomIntArray(arrayLength, random);
            int[] array2 = array1.clone();
@@ -118,7 +118,7 @@ public final class ParallelRadixSortTest {
        for (int iteration = 0; iteration < ITERATIONS; iteration++) {
            int arrayLength = 
                    random.nextInt(
-                           ParallelRadixSort.MERGESORT_THRESHOLD + 1);
+                           ParallelRadixSort.DEFAULT_MERGESORT_THRESHOLD + 1);
            
            int[] array1 = Utils.createRandomIntArray(arrayLength, random);
            int[] array2 = array1.clone();
