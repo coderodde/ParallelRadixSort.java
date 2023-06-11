@@ -49,8 +49,19 @@ public final class ParallelRadixSort {
      */
     private static final int DEFAULT_THREAD_THRESHOLD = 65536;
     
-    private static final int MINIMUM_MERGESORT_THRESHOLD = 61;
+    /**
+     * Minimum mergesort threshold.
+     */
+    private static final int MINIMUM_MERGESORT_THRESHOLD = 7;
+    
+    /**
+     * Minimum insertion sort threshold.
+     */
     private static final int MINIMUM_INSERTION_SORT_THRESHOLD = 7;
+    
+    /**
+     * Minimum thread workload.
+     */
     private static final int MINIMUM_THREAD_WORKLOAD = 4001;
     
     private static int insertionSortThreshold = DEFAULT_INSERTION_SORT_THRESHOLD;
@@ -263,7 +274,7 @@ public final class ParallelRadixSort {
                         target,
                         source,
                         startIndexMap[i],
-                        startIndexMap[i] + bucketSizeMap[i],
+                        startIndexMap[i],
                         bucketSizeMap[i],
                         recursionDepth + 1);
             }
