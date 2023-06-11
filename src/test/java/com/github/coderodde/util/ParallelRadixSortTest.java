@@ -4,9 +4,16 @@ import java.util.Arrays;
 import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public final class ParallelRadixSortTest {
+    
+    @BeforeClass
+    public static void setupBeforeClass() {
+        ParallelRadixSort.setInsertionSortThreshold(-1);
+        ParallelRadixSort.setMergesortThreshold(-1);
+    }
     
     @Test
     public void testInsertionSort() {
@@ -49,12 +56,16 @@ public final class ParallelRadixSortTest {
     @Test
     public void testSerialRadixSort() {
         Random random = new Random(26);
-        final int SIZE = 50_000;
-        int[] array1 = Utils.createRandomIntArray(SIZE, random);
+        final int SIZE = 128;
+        int[] array1 = Utils.createRandomIntArray(
+                SIZE, 
+                Integer.MAX_VALUE - 1,
+                random);
+        
         int[] array2 = array1.clone();
         
-        final int FROM_INDEX = 20;
-        final int TO_INDEX = SIZE - 20;
+        final int FROM_INDEX = 14;
+        final int TO_INDEX = SIZE - 14;
         
         Arrays.sort(array1, FROM_INDEX, TO_INDEX);
         ParallelRadixSort.parallelSort(
@@ -73,7 +84,7 @@ public final class ParallelRadixSortTest {
        for (int iteration = 0; iteration < ITERATIONS; iteration++) {
            int arrayLength = 
                    random.nextInt(
-                           ParallelRadixSort.INSERTION_SORT_THRESHOLD + 1);
+                           ParallelRadixSort.DEFAULT_INSERTION_SORT_THRESHOLD + 1);
            
            int[] array1 = Utils.createRandomIntArray(arrayLength, random);
            int[] array2 = array1.clone();
@@ -118,7 +129,7 @@ public final class ParallelRadixSortTest {
        for (int iteration = 0; iteration < ITERATIONS; iteration++) {
            int arrayLength = 
                    random.nextInt(
-                           ParallelRadixSort.MERGESORT_THRESHOLD + 1);
+                           ParallelRadixSort.DEFAULT_MERGESORT_THRESHOLD + 1);
            
            int[] array1 = Utils.createRandomIntArray(arrayLength, random);
            int[] array2 = array1.clone();
