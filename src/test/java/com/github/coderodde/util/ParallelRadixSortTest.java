@@ -184,5 +184,26 @@ public final class ParallelRadixSortTest {
                        3);
        
        assertEquals(0x78, bucketKey);
+       
+       bucketKey = 
+               ParallelRadixSort.getBucketIndex(
+                       0x8000_0001, 
+                       0);
+       
+       assertEquals(0, bucketKey);
+       
+       bucketKey = 
+               ParallelRadixSort.getBucketIndex(
+                       0x8000_00ff, 
+                       0);
+       
+       assertEquals(0, bucketKey);
+       
+       bucketKey = 
+               ParallelRadixSort.getBucketIndex(
+                       0x8000_0503, 
+                       0);
+       
+       assertEquals(1, bucketKey);
    }
 }

@@ -15,7 +15,7 @@ public final class ParallelRadixSort {
     /**
      * The index of the most significant byte.
      */
-    private static final int MOST_SIGNIFICANT_BYTE_INDEX = 3;
+    private static final int DEEPEST_RECURSION_DEPTH = 3;
     
     /**
      * The mask for extracting the sign bit.
@@ -194,7 +194,9 @@ public final class ParallelRadixSort {
         for (int i = sourceFromIndex; 
                 i != sourceToIndex; 
                 i++) {
-            bucketSizeMap[getBucketIndex(source[i], recursionDepth)]++;
+            int datum = source[i];
+            int bucketIndex = getBucketIndex(datum, recursionDepth);
+            bucketSizeMap[bucketIndex]++;
         }
         
         // Start computin the map mapping each bucket key to the index in the 
@@ -216,7 +218,7 @@ public final class ParallelRadixSort {
                 processedMap [bucketKey]++] = datum;
         }
         
-        if (recursionDepth == MOST_SIGNIFICANT_BYTE_INDEX) {
+        if (recursionDepth == DEEPEST_RECURSION_DEPTH) {
             System.arraycopy(
                     target, 
                     targetFromIndex, 
@@ -411,7 +413,7 @@ public final class ParallelRadixSort {
     
     static int getBucketIndex(int element, int recursionDepth) {
         return ((recursionDepth == 0 ? element ^ SIGN_BIT_MASK : element)
-            >>> ((MOST_SIGNIFICANT_BYTE_INDEX - recursionDepth) 
+            >>> ((DEEPEST_RECURSION_DEPTH - recursionDepth) 
                   * BITS_PER_BYTE)) 
                   & EXTRACT_BYTE_MASK;
     }
