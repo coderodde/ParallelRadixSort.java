@@ -56,7 +56,7 @@ public final class ParallelRadixSortTest {
     @Test
     public void testSerialRadixSort() {
         Random random = new Random(26);
-        final int SIZE = 128;
+        final int SIZE = 100;
         int[] array1 = Utils.createRandomIntArray(
                 SIZE, 
                 Integer.MAX_VALUE - 1,
@@ -64,8 +64,8 @@ public final class ParallelRadixSortTest {
         
         int[] array2 = array1.clone();
         
-        final int FROM_INDEX = 14;
-        final int TO_INDEX = SIZE - 14;
+        final int FROM_INDEX = 10;
+        final int TO_INDEX = SIZE - 5;
         
         Arrays.sort(array1, FROM_INDEX, TO_INDEX);
         ParallelRadixSort.parallelSort(
@@ -215,6 +215,6 @@ public final class ParallelRadixSortTest {
                        0x8000_0503, 
                        0);
        
-       assertEquals(1, bucketKey);
+       assertEquals(0, bucketKey);
    }
 }

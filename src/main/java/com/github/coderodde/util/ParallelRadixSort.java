@@ -36,13 +36,13 @@ public final class ParallelRadixSort {
      * The array slices smaller than this number of elements will be sorted with
      * merge sort.
      */
-    static final int DEFAULT_MERGESORT_THRESHOLD = 4096;
+    static final int DEFAULT_MERGESORT_THRESHOLD = 4001;
     
     /**
      * The array slices smaller than this number of elements will be sorted with
      * insertion sort.
      */
-    static final int DEFAULT_INSERTION_SORT_THRESHOLD = 16;
+    static final int DEFAULT_INSERTION_SORT_THRESHOLD = 13;
     
     /**
      * The minimum workload for a thread.
@@ -50,14 +50,14 @@ public final class ParallelRadixSort {
     private static final int DEFAULT_THREAD_THRESHOLD = 65536;
     
     /**
-     * Minimum mergesort threshold.
+     * Minimum merge sort threshold.
      */
-    private static final int MINIMUM_MERGESORT_THRESHOLD = 7;
+    private static final int MINIMUM_MERGESORT_THRESHOLD = 1;
     
     /**
      * Minimum insertion sort threshold.
      */
-    private static final int MINIMUM_INSERTION_SORT_THRESHOLD = 7;
+    private static final int MINIMUM_INSERTION_SORT_THRESHOLD = 1;
     
     /**
      * Minimum thread workload.
@@ -147,17 +147,6 @@ public final class ParallelRadixSort {
                 int rangeLength,
                 int recursionDepth,
                 int threads) {
-        // TODO: Remove?
-//        if (rangeLength <= MERGESORT_THRESHOLD) {
-//            mergesort(source, 
-//                      target, 
-//                      sourceFromIndex, 
-//                      targetFromIndex, 
-//                      rangeLength,
-//                      recursionDepth);
-//            
-//            return;
-//        }
         
         if (threads == 1) {
             radixSortImpl(
@@ -212,18 +201,18 @@ public final class ParallelRadixSort {
                                       int targetFromIndex,
                                       int rangeLength,
                                       int recursionDepth) {
-        
-        if (rangeLength <= mergesortThreshold) {
-            mergesort(
-                    source, 
-                    target, 
-                    sourceFromIndex, 
-                    targetFromIndex, 
-                    rangeLength, 
-                    recursionDepth);
-            
-            return;
-        }
+//        
+//        if (rangeLength <= mergesortThreshold) {
+//            mergesort(
+//                    source, 
+//                    target, 
+//                    sourceFromIndex, 
+//                    targetFromIndex, 
+//                    rangeLength, 
+//                    recursionDepth);
+//            
+//            return;
+//        }
         
         int[] bucketSizeMap = new int[BUCKETS];
         int[] startIndexMap = new int[BUCKETS];
@@ -240,8 +229,7 @@ public final class ParallelRadixSort {
             bucketSizeMap[bucketIndex]++;
         }
         
-        // Start computin the map mapping each bucket key to the index in the 
-        // source array at which the key appears:
+        // Compute starting indices for buckets in the target array.
         startIndexMap[0] = targetFromIndex;
         
         for (int i = 1; i != BUCKETS; i++) {
@@ -272,12 +260,33 @@ public final class ParallelRadixSort {
         
         for (int i = 0; i != BUCKETS; i++) {
             if (bucketSizeMap[i] != 0) {
+                int targetBucketStartIndex;
+                int sourceBucketStartIndex;
+                
+                if (recursionDepth % 2 == 0) {
+                    // Once here, we are sorting from original array to buffer
+                    // array:
+                    sourceBucketStartIndex = startIndexMap[i] // Original.
+                                           + sourceFromIndex;
+                    
+                    targetBucketStartIndex = startIndexMap[i]; // Buffer.
+                } else {
+                    // Once here, we are sorting from buffer to original array:
+                    sourceBucketStartIndex = startIndexMap[i] 
+                                           - targetFromIndex; // Buffer.
+                    
+                    targetBucketStartIndex = startIndexMap[i]; // Original.
+                }
+                
+                int bucketSize = bucketSizeMap[i];
+                
+                // Sort from 'target' to 'source':
                 radixSortImpl(
                         target,
                         source,
-                        startIndexMap[i],
-                        startIndexMap[i],
-                        bucketSizeMap[i],
+                        targetBucketStartIndex,
+                        sourceBucketStartIndex,
+                        bucketSize,
                         recursionDepth + 1);
             }
         }
