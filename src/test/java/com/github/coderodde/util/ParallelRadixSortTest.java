@@ -56,7 +56,7 @@ public final class ParallelRadixSortTest {
     @Test
     public void testSerialRadixSort() {
         Random random = new Random(26);
-        final int SIZE = 100;
+        final int SIZE = 500;
         int[] array1 = Utils.createRandomIntArray(
                 SIZE, 
                 Integer.MAX_VALUE - 1,

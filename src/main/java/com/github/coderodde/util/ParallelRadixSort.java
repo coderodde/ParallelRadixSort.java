@@ -229,9 +229,11 @@ public final class ParallelRadixSort {
             bucketSizeMap[bucketIndex]++;
         }
         
-        // Compute starting indices for buckets in the target array.
-        startIndexMap[0] = targetFromIndex;
-        
+        // Compute starting indices for buckets in the target array. This is 
+        // actually just an accumulated array of bucketSizeMap, such that
+        // startIndexMap[0] = 0, startIndexMap[1] = bucketSizeMap[0], ...,
+        // startIndexMap[BUCKETS - 1] = bucketSizeMap[0] + bucketSizeMap[1] +
+        // ... + bucketSizeMap[BUCKETS - 2].
         for (int i = 1; i != BUCKETS; i++) {
             startIndexMap[i] = startIndexMap[i - 1] 
                              + bucketSizeMap[i - 1];
@@ -242,9 +244,8 @@ public final class ParallelRadixSort {
             int datum = source[i];
             int bucketKey = getBucketIndex(datum, recursionDepth);
             
-            target[
-                startIndexMap[bucketKey] + 
-                processedMap [bucketKey]++] = datum;
+            target[targetFromIndex + startIndexMap[bucketKey] + 
+                                      processedMap[bucketKey]++] = datum;
         }
         
         if (recursionDepth == DEEPEST_RECURSION_DEPTH) {
@@ -260,33 +261,13 @@ public final class ParallelRadixSort {
         
         for (int i = 0; i != BUCKETS; i++) {
             if (bucketSizeMap[i] != 0) {
-                int targetBucketStartIndex;
-                int sourceBucketStartIndex;
-                
-                if (recursionDepth % 2 == 0) {
-                    // Once here, we are sorting from original array to buffer
-                    // array:
-                    sourceBucketStartIndex = startIndexMap[i] // Original.
-                                           + sourceFromIndex;
-                    
-                    targetBucketStartIndex = startIndexMap[i]; // Buffer.
-                } else {
-                    // Once here, we are sorting from buffer to original array:
-                    sourceBucketStartIndex = startIndexMap[i] 
-                                           - targetFromIndex; // Buffer.
-                    
-                    targetBucketStartIndex = startIndexMap[i]; // Original.
-                }
-                
-                int bucketSize = bucketSizeMap[i];
-                
                 // Sort from 'target' to 'source':
                 radixSortImpl(
                         target,
                         source,
-                        targetBucketStartIndex,
-                        sourceBucketStartIndex,
-                        bucketSize,
+                        targetFromIndex + startIndexMap[i],
+                        sourceFromIndex + startIndexMap[i],
+                        bucketSizeMap[i],
                         recursionDepth + 1);
             }
         }
