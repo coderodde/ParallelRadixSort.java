@@ -64,10 +64,29 @@ public final class ParallelRadixSort {
      */
     private static final int MINIMUM_THREAD_WORKLOAD = 4001;
     
-    private static int insertionSortThreshold = DEFAULT_INSERTION_SORT_THRESHOLD;
-    private static int mergesortThreshold = DEFAULT_MERGESORT_THRESHOLD;
-    private static int threadWorkload = DEFAULT_THREAD_THRESHOLD;
+    /**
+     * The current actual threshold for the insertion sort.
+     */
+    private static volatile int insertionSortThreshold =
+            DEFAULT_INSERTION_SORT_THRESHOLD;
     
+    /**
+     * The current actual threshold for the mergesort.
+     */
+    private static volatile int mergesortThreshold = 
+            DEFAULT_MERGESORT_THRESHOLD;
+    
+    /**
+     * The current actual minimum thread workload in elements.
+     */
+    private static volatile int minimumThreadWorkload = 
+            DEFAULT_THREAD_THRESHOLD;
+    
+    /**
+     * Sets the current insertion sort threshold.
+     * 
+     * @param newInsertionSortThreshold the new insertion sort threshold.
+     */
     public static void setInsertionSortThreshold(
             int newInsertionSortThreshold) {
         insertionSortThreshold = 
@@ -76,6 +95,11 @@ public final class ParallelRadixSort {
                         MINIMUM_INSERTION_SORT_THRESHOLD);
     }
     
+    /**
+     * Sets the current mergesort threshold.
+     * 
+     * @param newMergesortThreshold the new mergesort threshold.
+     */
     public static void setMergesortThreshold(int newMergesortThreshold) {
         mergesortThreshold = 
                 Math.max(
@@ -83,11 +107,16 @@ public final class ParallelRadixSort {
                     MINIMUM_MERGESORT_THRESHOLD);
     }
     
-    public static void setThreadWorkload(int newThreadWorkload) {
-        threadWorkload = 
+    /**
+     * Sets the current minimum thread workload.
+     * 
+     * @param newMinimumThreadWorkload the new minimum thread workload.
+     */
+    public static void setMinimumThreadWorkload(int newMinimumThreadWorkload) {
+        minimumThreadWorkload = 
                 Math.max(
                         MINIMUM_THREAD_WORKLOAD,
-                        newThreadWorkload);
+                        newMinimumThreadWorkload);
     }
     
     public static void parallelSort(int[] array) {
@@ -125,7 +154,7 @@ public final class ParallelRadixSort {
         int threads = 
                 Math.min(
                         Runtime.getRuntime().availableProcessors(), 
-                        rangeLength / threadWorkload);
+                        rangeLength / minimumThreadWorkload);
         
         threads = Math.max(threads, 1);
         
@@ -159,6 +188,8 @@ public final class ParallelRadixSort {
             
             return;
         }
+        
+        
     }
     
     private static void rangeCheck(
@@ -201,18 +232,6 @@ public final class ParallelRadixSort {
                                       int targetFromIndex,
                                       int rangeLength,
                                       int recursionDepth) {
-//        
-//        if (rangeLength <= mergesortThreshold) {
-//            mergesort(
-//                    source, 
-//                    target, 
-//                    sourceFromIndex, 
-//                    targetFromIndex, 
-//                    rangeLength, 
-//                    recursionDepth);
-//            
-//            return;
-//        }
         
         int[] bucketSizeMap = new int[BUCKETS];
         int[] startIndexMap = new int[BUCKETS];
@@ -229,15 +248,13 @@ public final class ParallelRadixSort {
             bucketSizeMap[bucketIndex]++;
         }
         
-        //
         // Compute starting indices for buckets in the target array. This is 
         // actually just an accumulated array of bucketSizeMap, such that
         // startIndexMap[0] = 0, startIndexMap[1] = bucketSizeMap[0], ...,
         // startIndexMap[BUCKETS - 1] = bucketSizeMap[0] + bucketSizeMap[1] +
         // ... + bucketSizeMap[BUCKETS - 2].
         for (int i = 1; i != BUCKETS; i++) {
-            startIndexMap[i] = startIndexMap[i - 1] 
-                             + bucketSizeMap[i - 1];
+            startIndexMap[i] = startIndexMap[i - 1] + bucketSizeMap[i - 1];
         }
         
         // Insert each element to its own bucket:
@@ -447,5 +464,79 @@ public final class ParallelRadixSort {
             >>> ((DEEPEST_RECURSION_DEPTH - recursionDepth) 
                   * BITS_PER_BYTE)) 
                   & EXTRACT_BYTE_MASK;
+    }
+    
+    private static final class BucketSizeCounterThread extends Thread {
+        
+        private final int[] localBucketSizeMap = new int[BUCKETS];
+        private final int[] array;
+        private final int fromIndex;
+        private final int toIndex;
+        private final int recursionDepth;
+        
+        BucketSizeCounterThread(int[] array,
+                                int fromIndex,
+                                int toIndex,
+                                int recursionDepth) {
+            
+            this.array          = array;
+            this.fromIndex      = fromIndex;
+            this.toIndex        = toIndex;
+            this.recursionDepth = recursionDepth;
+        }
+        
+        @Override
+        public void run() {
+            for (int i = fromIndex; i != toIndex; i++) {
+                localBucketSizeMap[getBucketIndex(array[i], recursionDepth)]++;
+            }
+        }
+        
+        int[] getLocalBucketSizeMap() {
+            return localBucketSizeMap;
+        }
+    }
+    
+    private static final class BucketInserterThread extends Thread {
+        
+        private final int[] source;
+        private final int[] target;
+        private final int sourceFromIndex;
+        private final int targetFromIndex;
+        private final int[] startIndexMap;
+        private final int[] processedMap;
+        private final int rangeLength;
+        private final int recursionDepth;
+        
+        BucketInserterThread(int[] source,
+                             int[] target,
+                             int sourceFromIndex,
+                             int targetFromIndex,
+                             int[] startIndexMap,
+                             int[] processedMap,
+                             int rangeLength,
+                             int recursionDepth) {
+            this.source = source;
+            this.target = target;
+            this.sourceFromIndex = sourceFromIndex;
+            this.targetFromIndex = targetFromIndex;
+            this.startIndexMap = startIndexMap;
+            this.processedMap = processedMap;
+            this.rangeLength = rangeLength;
+            this.recursionDepth = recursionDepth;
+        }
+        
+        @Override
+        public void run() {
+            int sourceToIndex = sourceFromIndex + rangeLength;
+            
+            for (int i = sourceFromIndex; i != sourceToIndex; i++) {
+                int datum = source[i];
+                int bucketKey = getBucketIndex(datum, recursionDepth);
+                
+                target[targetFromIndex + startIndexMap[bucketKey] + 
+                                          processedMap[bucketKey]++] = datum;
+            }
+        }
     }
 }
