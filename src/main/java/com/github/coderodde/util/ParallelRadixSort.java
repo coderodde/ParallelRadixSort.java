@@ -1,5 +1,6 @@
 package com.github.coderodde.util;
 
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -369,8 +370,7 @@ public final class ParallelRadixSort {
             }
         }
         
-        Random random = new Random();
-        nonEmptyBucketIndices.shuffle(random);
+        nonEmptyBucketIndices.shuffle(new Random());
         
         int f = 0;
         int j = 0;
@@ -401,13 +401,21 @@ public final class ParallelRadixSort {
             }
         }
         
-        ListOfBucketKeyLists listOfTaskArrays = 
-                new ListOfBucketKeyLists(spawnDegree);
+        SorterThread[] sorterThreads = new SorterThread[spawnDegree - 1];
         
         for (int i = 0; i != spawnDegree; i++) {
             BucketKeyList bucketKeyList = new BucketKeyList(BUCKETS);
+            BucketKeyList bucketKeyList2 =
+                    listOfBucketKeyLists.getBucketKeyList(i);
             
+            int size = bucketKeyList2.size();
             
+            for (int idx = 0; idx != size; idx++) {
+                int bucketKey = bucketKeyList2.getBucketKey(idx);
+                SorterThread sorterThread = new SorterThread();
+            }
+            
+            listOfBucketKeyLists.addBucketKeyList(bucketKeyList);
         }
     }
     
@@ -761,7 +769,61 @@ public final class ParallelRadixSort {
     
     private static final class SorterThread extends Thread {
         
-       
+        private final List<SorterTask> sorterTasks;
+        
+        SorterThread(List<SorterTask> sorterTasks) {
+            this.sorterTasks = sorterTasks;
+        }
+        
+        @Override
+        public void run() {
+            for (SorterTask sorterTask : sorterTasks) {
+                if (sorterTask.threads > 1) {
+                    parallelRadixSortImpl(sorterTask.source,
+                                          sorterTask.target,
+                                          sorterTask.sourceStartOffset,
+                                          sorterTask.targetStartOffset,
+                                          sorterTask.rangeLength,
+                                          sorterTask.recursionDepth,
+                                          sorterTask.threads);
+                } else {
+                    radixSortImpl(sorterTask.source,
+                                  sorterTask.target,
+                                  sorterTask.sourceStartOffset,
+                                  sorterTask.targetStartOffset,
+                                  sorterTask.rangeLength,
+                                  sorterTask.recursionDepth);
+                }
+            }
+        }
+    }
+    
+    private static final class SorterTask{
+        
+        final int[] source;
+        final int[] target;
+        final int sourceStartOffset;
+        final int targetStartOffset;
+        final int rangeLength;
+        final int recursionDepth;
+        final int threads;
+        
+        SorterTask(int[] source,
+                   int[] target,
+                   int sourceStartOffset,
+                   int targetStartOffset,
+                   int rangeLength,
+                   int recursionDepth,
+                   int threads) {
+            
+            this.source = source;
+            this.target = target;
+            this.sourceStartOffset = sourceStartOffset;
+            this.targetStartOffset = targetStartOffset;
+            this.rangeLength = rangeLength;
+            this.recursionDepth = recursionDepth;
+            this.threads = threads;
+        }
     }
     
     private static final class BucketKeyList {
