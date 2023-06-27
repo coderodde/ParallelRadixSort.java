@@ -1,4 +1,7 @@
 package com.github.coderodde.util;
+
+import java.util.Random;
+
 /**
  *
  * @author Rodion "rodde" Efremov
@@ -342,6 +345,69 @@ public final class ParallelRadixSort {
                     new BucketKeyList(numberOfNonemptyBuckets);
             
             listOfBucketKeyLists.addBucketKeyList(bucketKeyList);
+        }
+        
+        // Match each thread to the number of threads it may run in:
+        int[] threadCountMap = new int[spawnDegree];
+        
+        // ... basic thread counts...
+        for (int i = 0; i != spawnDegree; i++) {
+            threadCountMap[i] = threads / spawnDegree;
+        }
+        
+        // ... make sure all threads are in use:
+        for (int i = 0; i != threads % spawnDegree; i++) {
+            threadCountMap[i]++;
+        }
+        
+        BucketKeyList nonEmptyBucketIndices = 
+                new BucketKeyList(numberOfNonemptyBuckets);
+        
+        for (int bucketKey = 0; bucketKey != BUCKETS; bucketKey++) {
+            if (globalBucketSizeMap[bucketKey] != 0) {
+                nonEmptyBucketIndices.addBucketKey(bucketKey);
+            }
+        }
+        
+        Random random = new Random();
+        nonEmptyBucketIndices.shuffle(random);
+        
+        int f = 0;
+        int j = 0;
+        int listIndex = 0;
+        int optimalSubrangeLength = rangeLength / spawnDegree;
+        int packed = 0;
+        int sz = nonEmptyBucketIndices.size();
+        
+        while (j != sz) {
+            int bucketKey = nonEmptyBucketIndices.getBucketKey(j++);
+            int tmp = globalBucketSizeMap[bucketKey];
+            packed += tmp;
+            
+            if (packed >= optimalSubrangeLength || j == sz) {
+                packed = 0;
+                
+                for (int i = f; i != j; i++) {
+                    int bucketKey2 = nonEmptyBucketIndices.getBucketKey(i);
+                    
+                    BucketKeyList bucketKeyList = 
+                            listOfBucketKeyLists.getBucketKeyList(listIndex);
+                    
+                    bucketKeyList.addBucketKey(bucketKey2);
+                }
+                
+                listIndex++;
+                f = j;
+            }
+        }
+        
+        ListOfBucketKeyLists listOfTaskArrays = 
+                new ListOfBucketKeyLists(spawnDegree);
+        
+        for (int i = 0; i != spawnDegree; i++) {
+            BucketKeyList bucketKeyList = new BucketKeyList(BUCKETS);
+            
+            
         }
     }
     
@@ -716,6 +782,15 @@ public final class ParallelRadixSort {
         
         int size() {
             return size;
+        }
+        
+        void shuffle(Random random) {
+            for (int i = 0; i != size - 1; i++) {
+                int j = i + random.nextInt(size - i);
+                int temp = bucketKeys[i];
+                bucketKeys[i] = bucketKeys[j];
+                bucketKeys[j] = temp;
+            }
         }
     }
     
