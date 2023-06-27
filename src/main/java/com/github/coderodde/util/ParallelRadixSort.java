@@ -1,5 +1,6 @@
 package com.github.coderodde.util;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -408,11 +409,19 @@ public final class ParallelRadixSort {
             BucketKeyList bucketKeyList2 =
                     listOfBucketKeyLists.getBucketKeyList(i);
             
+            List<SorterTask> sorterTasks = new ArrayList<>(spawnDegree);
+            
             int size = bucketKeyList2.size();
             
             for (int idx = 0; idx != size; idx++) {
+                SorterTask sorterTask = new SorterTask(
+                        
+                );
                 int bucketKey = bucketKeyList2.getBucketKey(idx);
-                SorterThread sorterThread = new SorterThread();
+                SorterThread sorterThread = 
+                        new SorterThread(target,
+                                         source,
+                                         );
             }
             
             listOfBucketKeyLists.addBucketKeyList(bucketKeyList);
