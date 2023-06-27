@@ -328,6 +328,21 @@ public final class ParallelRadixSort {
                         ex);
             }
         }
+        
+        if (recursionDepth == DEEPEST_RECURSION_DEPTH) {
+            // Nowhere to recur, all bytes are processed. Return.
+            return;
+        }
+        
+        ListOfBucketKeyLists listOfBucketKeyLists =
+                new ListOfBucketKeyLists(spawnDegree);
+        
+        for (int i = 0; i != spawnDegree; i++) {
+            BucketKeyList bucketKeyList = 
+                    new BucketKeyList(numberOfNonemptyBuckets);
+            
+            listOfBucketKeyLists.addBucketKeyList(bucketKeyList);
+        }
     }
     
     private static void rangeCheck(
@@ -697,6 +712,27 @@ public final class ParallelRadixSort {
         
         int getBucketKey(int index) {
             return this.bucketKeys[index];
+        }
+        
+        int size() {
+            return size;
+        }
+    }
+    
+    private static final class ListOfBucketKeyLists {
+        private final BucketKeyList[] lists;
+        private int size;
+        
+        ListOfBucketKeyLists(int capacity) {
+            this.lists = new BucketKeyList[capacity];
+        }
+        
+        void addBucketKeyList(BucketKeyList bucketKeyList) {
+            this.lists[this.size++] = bucketKeyList;
+        }
+        
+        BucketKeyList getBucketKeyList(int index) {
+            return this.lists[index];
         }
         
         int size() {
