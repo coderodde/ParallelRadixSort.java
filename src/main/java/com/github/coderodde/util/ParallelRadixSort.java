@@ -1,4 +1,8 @@
 package com.github.coderodde.util;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  *
  * @author Rodion "rodde" Efremov
@@ -188,6 +192,69 @@ public final class ParallelRadixSort {
             
             return;
         }
+        
+        int startIndex = sourceFromIndex;
+        int subrangeLength = rangeLength / threads;
+        
+        BucketSizeCounterThread[] bucketSizeCounterThreads = 
+                new BucketSizeCounterThread[threads];
+        
+        for (int i = 0; i != bucketSizeCounterThreads.length - 1; i++) {
+            BucketSizeCounterThread bucketSizeCounterThread = 
+                    new BucketSizeCounterThread(
+                            source,
+                            startIndex,
+                            startIndex += subrangeLength, 
+                            recursionDepth);
+            
+            bucketSizeCounterThread.start();
+            bucketSizeCounterThreads[i] = bucketSizeCounterThread;
+        }
+        
+        // Run the last bucket size counter thread in this thread:
+        BucketSizeCounterThread lastBucketSizeCounterThread =
+                new BucketSizeCounterThread(
+                    source, 
+                    startIndex, 
+                    sourceFromIndex + rangeLength, 
+                    recursionDepth);
+        
+        bucketSizeCounterThreads[threads - 1] = lastBucketSizeCounterThread;
+        
+        for (int i = 0; i != threads - 1; i++) {
+            BucketSizeCounterThread bucketSizeCounterThread = 
+                    bucketSizeCounterThreads[i];
+            
+            try {
+                bucketSizeCounterThread.join();
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(
+                        "Could not join a bucket size counter thread.",
+                        ex);
+            }
+        }
+        
+        // Build the global bucket size map:
+        int[] globalBucketSizeMap = new int[BUCKETS];
+        
+        for (int i = 0; i != threads; i++) {
+            int[] localBucketSizeMap = 
+                    bucketSizeCounterThreads[i].getLocalBucketSizeMap();
+            
+            for (int j = 0; j != BUCKETS; j++) {
+                globalBucketSizeMap[j] += localBucketSizeMap[j];
+            }
+        }
+        
+        int numberOfNonemptyBuckets = 0;
+        
+        for (int i = 0; i != BUCKETS; i++) {
+            if (globalBucketSizeMap[i] != 0) {
+                numberOfNonemptyBuckets++;
+            }
+        }
+        
+        int spawnDegree = Math.min(numberOfNonemptyBuckets, threads);
         
         
     }
@@ -537,6 +604,14 @@ public final class ParallelRadixSort {
                 target[targetFromIndex + startIndexMap[bucketKey] + 
                                           processedMap[bucketKey]++] = datum;
             }
+        }
+    }
+    
+    private static final class SorterThread extends Thread {
+        
+        @Override
+        public void run() {
+            
         }
     }
 }
