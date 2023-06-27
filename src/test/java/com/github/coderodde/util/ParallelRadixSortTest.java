@@ -78,6 +78,32 @@ public final class ParallelRadixSortTest {
         assertTrue(Arrays.equals(array1, array2));
     }
     
+   
+    @Test
+    public void testParallelRadixSort() {
+        Random random = new Random(29);
+        
+        final int SIZE = 5_000_000;
+        
+        int[] array1 = Utils.createRandomIntArray(
+                SIZE, 
+                Integer.MAX_VALUE - 1,
+                random);
+        
+        int[] array2 = array1.clone();
+        
+        final int FROM_INDEX = 13;
+        final int TO_INDEX = SIZE - 15;
+        
+        Arrays.sort(array1, FROM_INDEX, TO_INDEX);
+        ParallelRadixSort.parallelSort(
+                array2, 
+                FROM_INDEX, 
+                TO_INDEX);
+        
+        assertTrue(Arrays.equals(array1, array2));
+    }
+    
    @Test
    public void bruteForceTestInsertionsort() {
        final int ITERATIONS = 200;
