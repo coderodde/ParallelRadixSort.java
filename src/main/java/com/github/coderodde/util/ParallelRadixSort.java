@@ -1,7 +1,8 @@
 package com.github.coderodde.util;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 /**
  *
@@ -199,6 +200,8 @@ public final class ParallelRadixSort {
         BucketSizeCounterThread[] bucketSizeCounterThreads = 
                 new BucketSizeCounterThread[threads];
         
+        // Spawn all but the rightmost bucket size counter thread. The rightmost
+        // thread will be run in this thread as a mild optimization:
         for (int i = 0; i != bucketSizeCounterThreads.length - 1; i++) {
             BucketSizeCounterThread bucketSizeCounterThread = 
                     new BucketSizeCounterThread(
@@ -219,8 +222,11 @@ public final class ParallelRadixSort {
                     sourceFromIndex + rangeLength, 
                     recursionDepth);
         
+        // Run the last bucket size thread in this thread:
+        lastBucketSizeCounterThread.run(); 
         bucketSizeCounterThreads[threads - 1] = lastBucketSizeCounterThread;
         
+        // Join all the spawned bucket size counter threads:
         for (int i = 0; i != threads - 1; i++) {
             BucketSizeCounterThread bucketSizeCounterThread = 
                     bucketSizeCounterThreads[i];
@@ -255,8 +261,207 @@ public final class ParallelRadixSort {
         }
         
         int spawnDegree = Math.min(numberOfNonemptyBuckets, threads);
+        int[] startIndexMap = new int[BUCKETS];
         
+        for (int i = 1; i != BUCKETS; i++) {
+            startIndexMap[i] = startIndexMap[i - 1] 
+                             + globalBucketSizeMap[i - 1];
+        }
         
+        int[][] processedMaps = new int[spawnDegree][BUCKETS];
+        
+        // Make the preprocessing map independent of each thread:
+        for (int i = 1; i != spawnDegree; i++) {
+            int[] partialBucketSizeMap =
+                    bucketSizeCounterThreads[i - 1].getLocalBucketSizeMap();
+            
+            for (int j = 0; j != BUCKETS; j++) {
+                processedMaps[i][j] = processedMaps[i - 1][j]
+                                    + partialBucketSizeMap[j];
+            }
+        }
+        
+        int sourceStartIndex = sourceFromIndex;
+        int targetStartIndex = targetFromIndex;
+        
+        BucketInserterThread[] bucketInserterThreads = 
+                new BucketInserterThread[spawnDegree];
+        
+        // Spawn all but the rightmost bucket inserter thread. The rightmost
+        // thread will be run in this thread as a mild optimization:
+        for (int i = 0; i != spawnDegree - 1; i++) {
+            BucketInserterThread bucketInserterThread = 
+                    new BucketInserterThread(
+                            source,
+                            target,
+                            sourceStartIndex += subrangeLength,
+                            targetStartIndex += subrangeLength,
+                            startIndexMap,
+                            processedMaps[i],
+                            subrangeLength,
+                            recursionDepth);
+            
+            bucketInserterThread.start();
+            bucketInserterThreads[i] = bucketInserterThread;
+        }
+        
+        BucketInserterThread lastBucketInserterThread =
+                new BucketInserterThread(
+                            source,
+                            target,
+                            sourceStartIndex,
+                            targetStartIndex,
+                            startIndexMap,
+                            processedMaps[spawnDegree - 1],
+                            rangeLength - (spawnDegree - 1) * subrangeLength,
+                            recursionDepth);
+        
+        // Run the last, rightmost bucket inserter thread in this thread:
+        lastBucketInserterThread.run();
+        bucketInserterThreads[threads - 1] = lastBucketInserterThread;
+        
+        // Join all the spawned bucket inserter threads:
+        for (int i = 0; i != threads - 1; i++) {
+            BucketInserterThread bucketInserterThread = 
+                    bucketInserterThreads[i];
+            
+            try {
+                bucketInserterThread.join();
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(
+                        "Could not join a bucket inserter thread.",
+                        ex);
+            }
+        }
+        
+        if (recursionDepth == DEEPEST_RECURSION_DEPTH) {
+            // Nowhere to recur, all bytes are processed. Return.
+            return;
+        }
+        
+        ListOfBucketKeyLists listOfBucketKeyLists =
+                new ListOfBucketKeyLists(spawnDegree);
+        
+        for (int i = 0; i != spawnDegree; i++) {
+            BucketKeyList bucketKeyList = 
+                    new BucketKeyList(numberOfNonemptyBuckets);
+            
+            listOfBucketKeyLists.addBucketKeyList(bucketKeyList);
+        }
+        
+        // Match each thread to the number of threads it may run in:
+        int[] threadCountMap = new int[spawnDegree];
+        
+        // ... basic thread counts...
+        for (int i = 0; i != spawnDegree; i++) {
+            threadCountMap[i] = threads / spawnDegree;
+        }
+        
+        // ... make sure all threads are in use:
+        for (int i = 0; i != threads % spawnDegree; i++) {
+            threadCountMap[i]++;
+        }
+        
+        // Contains all the keys of all the non-empty buckets:
+        BucketKeyList nonEmptyBucketIndices = 
+                new BucketKeyList(numberOfNonemptyBuckets);
+        
+        for (int bucketKey = 0; bucketKey != BUCKETS; bucketKey++) {
+            if (globalBucketSizeMap[bucketKey] != 0) {
+                nonEmptyBucketIndices.addBucketKey(bucketKey);
+            }
+        }
+        
+        // Shuffle the bucket keys:
+        nonEmptyBucketIndices.shuffle(new Random());
+        
+        // Distributed the buckets over sorter task lists:
+        int f = 0;
+        int j = 0;
+        int listIndex = 0;
+        int optimalSubrangeLength = rangeLength / spawnDegree;
+        int packed = 0;
+        int sz = nonEmptyBucketIndices.size();
+        
+        while (j != sz) {
+            int bucketKey = nonEmptyBucketIndices.getBucketKey(j++);
+            int tmp = globalBucketSizeMap[bucketKey];
+            packed += tmp;
+            
+            if (packed >= optimalSubrangeLength || j == sz) {
+                packed = 0;
+                
+                for (int i = f; i != j; i++) {
+                    int bucketKey2 = nonEmptyBucketIndices.getBucketKey(i);
+                    
+                    BucketKeyList bucketKeyList = 
+                            listOfBucketKeyLists.getBucketKeyList(listIndex);
+                    
+                    bucketKeyList.addBucketKey(bucketKey2);
+                }
+                
+                listIndex++;
+                f = j;
+            }
+        }
+        
+        List<List<SorterTask>> listOfSorterTaskLists = 
+                new ArrayList<>(spawnDegree);
+        
+        for (int i = 0; i != spawnDegree; i++) {
+            List<SorterTask> sorterTaskList = 
+                    new ArrayList<>(BUCKETS);
+            
+            int size = listOfBucketKeyLists.getBucketKeyList(i).size();
+            
+            for (int idx = 0; idx != size; idx++) {
+                int bucketKey =
+                        listOfBucketKeyLists
+                                .getBucketKeyList(i)
+                                .getBucketKey(idx);
+                
+                SorterTask sorterTask =
+                        new SorterTask(
+                                target,
+                                source,
+                                targetFromIndex + startIndexMap[bucketKey],
+                                sourceStartIndex + startIndexMap[bucketKey], 
+                                globalBucketSizeMap[bucketKey],
+                                recursionDepth + 1,
+                                threadCountMap[i]);
+                
+                sorterTaskList.add(sorterTask);
+            }
+            
+            listOfSorterTaskLists.add(sorterTaskList);
+        }
+        
+        SorterThread[] sorterThreads = new SorterThread[spawnDegree - 1];
+        
+        // Recur into deeper depth via multithreading:
+        for (int i = 0; i != sorterThreads.length; i++) {
+            SorterThread sorterThread = 
+                    new SorterThread(
+                            listOfSorterTaskLists.get(i));
+            
+            sorterThread.start();
+            sorterThreads[i] = sorterThread;
+        }
+        
+        // Run the rightmost sorter thread in this thread:
+        new SorterThread(
+                listOfSorterTaskLists.get(spawnDegree - 1)).run();;
+        
+        // Join all the actually spawned sorter threads:
+        for (SorterThread sorterThread : sorterThreads) {
+            try {
+                sorterThread.join();
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(
+                        "Could not join a sorter thread.",
+                        ex);
+            }
+        }
     }
     
     private static void rangeCheck(
@@ -608,10 +813,112 @@ public final class ParallelRadixSort {
     }
     
     private static final class SorterThread extends Thread {
+       
+        private final List<SorterTask> sorterTasks;
+        
+        SorterThread(List<SorterTask> sorterTasks) {
+            this.sorterTasks = sorterTasks;
+        }
         
         @Override
         public void run() {
+            for (SorterTask sorterTask : sorterTasks) {
+                if (sorterTask.threads > 1) {
+                    parallelRadixSortImpl(sorterTask.source,
+                                          sorterTask.target,
+                                          sorterTask.sourceStartOffset,
+                                          sorterTask.targetStartOffset,
+                                          sorterTask.rangeLength,
+                                          sorterTask.recursionDepth,
+                                          sorterTask.threads);
+                } else {
+                    radixSortImpl(sorterTask.source,
+                                  sorterTask.target,
+                                  sorterTask.sourceStartOffset,
+                                  sorterTask.targetStartOffset,
+                                  sorterTask.rangeLength,
+                                  sorterTask.recursionDepth);
+                }
+            }
+        }
+    }
+    
+    private static final class SorterTask{
+        
+        final int[] source;
+        final int[] target;
+        final int sourceStartOffset;
+        final int targetStartOffset;
+        final int rangeLength;
+        final int recursionDepth;
+        final int threads;
+        
+        SorterTask(int[] source,
+                   int[] target,
+                   int sourceStartOffset,
+                   int targetStartOffset,
+                   int rangeLength,
+                   int recursionDepth,
+                   int threads) {
             
+            this.source = source;
+            this.target = target;
+            this.sourceStartOffset = sourceStartOffset;
+            this.targetStartOffset = targetStartOffset;
+            this.rangeLength = rangeLength;
+            this.recursionDepth = recursionDepth;
+            this.threads = threads;
+        }
+    }
+    
+    private static final class BucketKeyList {
+        private final int[] bucketKeys;
+        private int size;
+        
+        BucketKeyList(int capacity) {
+            this.bucketKeys = new int[capacity];
+        }
+        
+        void addBucketKey(int bucketKey) {
+            this.bucketKeys[size++] = bucketKey;
+        }
+        
+        int getBucketKey(int index) {
+            return this.bucketKeys[index];
+        }
+        
+        int size() {
+            return size;
+        }
+        
+        void shuffle(Random random) {
+            for (int i = 0; i != size - 1; i++) {
+                int j = i + random.nextInt(size - i);
+                int temp = bucketKeys[i];
+                bucketKeys[i] = bucketKeys[j];
+                bucketKeys[j] = temp;
+            }
+        }
+    }
+    
+    private static final class ListOfBucketKeyLists {
+        private final BucketKeyList[] lists;
+        private int size;
+        
+        ListOfBucketKeyLists(int capacity) {
+            this.lists = new BucketKeyList[capacity];
+        }
+        
+        void addBucketKeyList(BucketKeyList bucketKeyList) {
+            this.lists[this.size++] = bucketKeyList;
+        }
+        
+        BucketKeyList getBucketKeyList(int index) {
+            return this.lists[index];
+        }
+        
+        int size() {
+            return size;
         }
     }
 }
