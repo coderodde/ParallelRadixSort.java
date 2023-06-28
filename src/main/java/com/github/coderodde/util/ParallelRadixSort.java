@@ -339,14 +339,14 @@ public final class ParallelRadixSort {
             return;
         }
         
-        ListOfBucketKeyLists listOfBucketKeyLists =
+        ListOfBucketKeyLists bucketIndexListArray =
                 new ListOfBucketKeyLists(spawnDegree);
         
         for (int i = 0; i != spawnDegree; i++) {
             BucketKeyList bucketKeyList = 
                     new BucketKeyList(numberOfNonemptyBuckets);
             
-            listOfBucketKeyLists.addBucketKeyList(bucketKeyList);
+            bucketIndexListArray.addBucketKeyList(bucketKeyList);
         }
         
         // Match each thread to the number of threads it may run in:
@@ -395,7 +395,7 @@ public final class ParallelRadixSort {
                     int bucketKey2 = nonEmptyBucketIndices.getBucketKey(i);
                     
                     BucketKeyList bucketKeyList = 
-                            listOfBucketKeyLists.getBucketKeyList(listIndex);
+                            bucketIndexListArray.getBucketKeyList(listIndex);
                     
                     bucketKeyList.addBucketKey(bucketKey2);
                 }
@@ -405,20 +405,20 @@ public final class ParallelRadixSort {
             }
         }
         
-        List<List<SorterTask>> listOfSorterTaskLists = 
+        List<List<SorterTask>> arrayOfTaskArrays = 
                 new ArrayList<>(spawnDegree);
         
         for (int i = 0; i != spawnDegree; i++) {
-            List<SorterTask> sorterTaskList = 
+            List<SorterTask> taskArray = 
                     new ArrayList<>(BUCKETS);
             
-            int size = listOfBucketKeyLists.getBucketKeyList(i).size();
+            BucketKeyList bucketKeyList = 
+                    bucketIndexListArray.getBucketKeyList(i);
+            
+            int size = bucketKeyList.size();
             
             for (int idx = 0; idx != size; idx++) {
-                int bucketKey =
-                        listOfBucketKeyLists
-                                .getBucketKeyList(i)
-                                .getBucketKey(idx);
+                int bucketKey = bucketKeyList.getBucketKey(idx);
                 
                 SorterTask sorterTask =
                         new SorterTask(
@@ -430,10 +430,10 @@ public final class ParallelRadixSort {
                                 recursionDepth + 1,
                                 threadCountMap[i]);
                 
-                sorterTaskList.add(sorterTask);
+                taskArray.add(sorterTask);
             }
             
-            listOfSorterTaskLists.add(sorterTaskList);
+            arrayOfTaskArrays.add(taskArray);
         }
         
         SorterThread[] sorterThreads = new SorterThread[spawnDegree - 1];
@@ -442,7 +442,7 @@ public final class ParallelRadixSort {
         for (int i = 0; i != sorterThreads.length; i++) {
             SorterThread sorterThread = 
                     new SorterThread(
-                            listOfSorterTaskLists.get(i));
+                            arrayOfTaskArrays.get(i));
             
             sorterThread.start();
             sorterThreads[i] = sorterThread;
@@ -450,7 +450,7 @@ public final class ParallelRadixSort {
         
         // Run the rightmost sorter thread in this thread:
         new SorterThread(
-                listOfSorterTaskLists.get(spawnDegree - 1)).run();;
+                arrayOfTaskArrays.get(spawnDegree - 1)).run();;
         
         // Join all the actually spawned sorter threads:
         for (SorterThread sorterThread : sorterThreads) {
