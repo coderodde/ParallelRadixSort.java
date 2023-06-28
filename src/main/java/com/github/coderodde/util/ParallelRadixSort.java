@@ -5,7 +5,13 @@ import java.util.List;
 import java.util.Random;
 
 /**
- *
+ * This class provides the method for parallel sorting of {@code int} arrays.
+ * The underlying algorithm is a parallel MSD (most significant digit) radix
+ * sort. At each iteration, only a single byte is considered so that the number 
+ * of buckets is 256. This implementation honours the sign bit so that the 
+ * result of parallel radix sorting is the same as in 
+ * {@link java.util.Arrays.parallelSort(int[])}.
+ * 
  * @author Rodion "rodde" Efremov
  * @version 1.6 (Jun 3, 2023)
  * @since 1.6 (Jun 3, 2023)
@@ -67,7 +73,7 @@ public final class ParallelRadixSort {
     /**
      * Minimum thread workload.
      */
-    private static final int MINIMUM_THREAD_WORKLOAD = 4001;
+    private static final int MINIMUM_THREAD_WORKLOAD = 1;
     
     /**
      * The current actual threshold for the insertion sort.
@@ -124,10 +130,22 @@ public final class ParallelRadixSort {
                         newMinimumThreadWorkload);
     }
     
+    /**
+     * Sorts the entire input array into non-decreasing order.
+     * 
+     * @param array the array to sort.
+     */
     public static void parallelSort(int[] array) {
         parallelSort(array, 0, array.length);
     }
     
+    /**
+     * Sorts the range {@code array[fromIndex], ..., array[toIndex - 1]}.
+     * 
+     * @param array     the array holding the target range to sort.
+     * @param fromIndex the starting, inclusive index of the range to sort.
+     * @param toIndex   the ending, exclusive index of the range to sort.
+     */
     public static void parallelSort(int[] array, int fromIndex, int toIndex) {
         rangeCheck(array.length, fromIndex, toIndex);
         
@@ -163,14 +181,24 @@ public final class ParallelRadixSort {
         
         threads = Math.max(threads, 1);
         
-        parallelRadixSortImpl(
-                array, 
-                buffer, 
-                fromIndex, 
-                0, 
-                rangeLength,
-                0,
-                threads);
+        if (threads == 1) {
+            radixSortImpl(
+                    array, 
+                    buffer,
+                    fromIndex, 
+                    0,
+                    rangeLength, 
+                    0);
+        } else {
+            parallelRadixSortImpl(
+                    array, 
+                    buffer, 
+                    fromIndex, 
+                    0, 
+                    rangeLength,
+                    0,
+                    threads);
+        }
     }
     
     private static void parallelRadixSortImpl(
@@ -181,18 +209,6 @@ public final class ParallelRadixSort {
                 int rangeLength,
                 int recursionDepth,
                 int threads) {
-        
-        if (threads == 1) {
-            radixSortImpl(
-                    source, 
-                    target, 
-                    sourceFromIndex, 
-                    targetFromIndex, 
-                    rangeLength, 
-                    recursionDepth);
-            
-            return;
-        }
         
         int startIndex = sourceFromIndex;
         int subrangeLength = rangeLength / threads;
@@ -294,12 +310,15 @@ public final class ParallelRadixSort {
                     new BucketInserterThread(
                             source,
                             target,
-                            sourceStartIndex += subrangeLength,
-                            targetStartIndex += subrangeLength,
+                            sourceStartIndex,
+                            targetStartIndex,
                             startIndexMap,
                             processedMaps[i],
                             subrangeLength,
                             recursionDepth);
+            
+            sourceStartIndex += subrangeLength;
+            targetStartIndex += subrangeLength;
             
             bucketInserterThread.start();
             bucketInserterThreads[i] = bucketInserterThread;
@@ -318,10 +337,10 @@ public final class ParallelRadixSort {
         
         // Run the last, rightmost bucket inserter thread in this thread:
         lastBucketInserterThread.run();
-        bucketInserterThreads[threads - 1] = lastBucketInserterThread;
+        bucketInserterThreads[spawnDegree - 1] = lastBucketInserterThread;
         
         // Join all the spawned bucket inserter threads:
-        for (int i = 0; i != threads - 1; i++) {
+        for (int i = 0; i != spawnDegree - 1; i++) {
             BucketInserterThread bucketInserterThread = 
                     bucketInserterThreads[i];
             

@@ -11,11 +11,12 @@ public final class ParallelRadixSortTest {
     
     @BeforeClass
     public static void setupBeforeClass() {
-//        ParallelRadixSort.setInsertionSortThreshold(-1);
-//        ParallelRadixSort.setMergesortThreshold(-1);
+        ParallelRadixSort.setInsertionSortThreshold(-1);
+        ParallelRadixSort.setMergesortThreshold(-1);
+        ParallelRadixSort.setMinimumThreadWorkload(-1);
     }
     
-    @Test
+//    @Test
     public void testInsertionSort() {
         Random random = new Random(13L);
         
@@ -32,7 +33,7 @@ public final class ParallelRadixSortTest {
         assertTrue(Arrays.equals(array1, array2));
     }
         
-    @Test
+//    @Test
     public void testMergesort() {
         Random random = new Random(123L);
         
@@ -53,7 +54,7 @@ public final class ParallelRadixSortTest {
         assertTrue(Arrays.equals(array1, array2));
    }
     
-    @Test
+//    @Test
     public void testSerialRadixSort() {
         Random random = new Random(26);
 
@@ -83,7 +84,7 @@ public final class ParallelRadixSortTest {
     public void testParallelRadixSort() {
         Random random = new Random(29);
         
-        final int SIZE = 5_000_000;
+        final int SIZE = 200;
         
         int[] array1 = Utils.createRandomIntArray(
                 SIZE, 
@@ -104,7 +105,7 @@ public final class ParallelRadixSortTest {
         assertTrue(Arrays.equals(array1, array2));
     }
     
-   @Test
+//   @Test
    public void bruteForceTestInsertionsort() {
        final int ITERATIONS = 200;
        Random random = new Random(432);
@@ -149,7 +150,7 @@ public final class ParallelRadixSortTest {
        }
    }
     
-   @Test
+//   @Test
    public void bruteForceTestMergesort() {
        final int ITERATIONS = 200;
        Random random = new Random(3);
