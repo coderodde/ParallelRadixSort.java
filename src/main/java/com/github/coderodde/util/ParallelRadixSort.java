@@ -297,9 +297,6 @@ public final class ParallelRadixSort {
             }
         }
         
-        int sourceStartIndex = sourceFromIndex;
-        int targetStartIndex = targetFromIndex;
-        
         BucketInserterThread[] bucketInserterThreads = 
                 new BucketInserterThread[spawnDegree];
         
@@ -310,15 +307,12 @@ public final class ParallelRadixSort {
                     new BucketInserterThread(
                             source,
                             target,
-                            sourceStartIndex,
-                            targetStartIndex,
+                            sourceFromIndex,
+                            targetFromIndex,
                             startIndexMap,
                             processedMaps[i],
                             subrangeLength,
                             recursionDepth);
-            
-            sourceStartIndex += subrangeLength;
-            targetStartIndex += subrangeLength;
             
             bucketInserterThread.start();
             bucketInserterThreads[i] = bucketInserterThread;
@@ -328,8 +322,8 @@ public final class ParallelRadixSort {
                 new BucketInserterThread(
                             source,
                             target,
-                            sourceStartIndex,
-                            targetStartIndex,
+                            sourceFromIndex,
+                            targetFromIndex,
                             startIndexMap,
                             processedMaps[spawnDegree - 1],
                             rangeLength - (spawnDegree - 1) * subrangeLength,
@@ -444,7 +438,7 @@ public final class ParallelRadixSort {
                                 target,
                                 source,
                                 targetFromIndex + startIndexMap[bucketKey],
-                                sourceStartIndex + startIndexMap[bucketKey], 
+                                sourceFromIndex + startIndexMap[bucketKey], 
                                 globalBucketSizeMap[bucketKey],
                                 recursionDepth + 1,
                                 threadCountMap[i]);
@@ -458,7 +452,7 @@ public final class ParallelRadixSort {
         SorterThread[] sorterThreads = new SorterThread[spawnDegree - 1];
         
         // Recur into deeper depth via multithreading:
-        for (int i = 0; i != sorterThreads.length; i++) {
+        for (int i = 0; i != spawnDegree - 1; i++) {
             SorterThread sorterThread = 
                     new SorterThread(
                             arrayOfTaskArrays.get(i));
@@ -824,9 +818,11 @@ public final class ParallelRadixSort {
             for (int i = sourceFromIndex; i != sourceToIndex; i++) {
                 int datum = source[i];
                 int bucketKey = getBucketIndex(datum, recursionDepth);
+                int startIndex = startIndexMap[bucketKey];
+                int processedCount = processedMap[bucketKey]++;
+                int targetIndex = targetFromIndex + startIndex + processedCount;
                 
-                target[targetFromIndex + startIndexMap[bucketKey] + 
-                                          processedMap[bucketKey]++] = datum;
+                target[targetIndex] = datum;
             }
         }
     }
