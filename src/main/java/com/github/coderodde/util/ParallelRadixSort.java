@@ -440,6 +440,8 @@ public final class ParallelRadixSort {
             }
         }
         
+        sourceStartIndex = sourceFromIndex;
+        
         List<List<SorterTask>> arrayOfTaskArrays = 
                 new ArrayList<>(spawnDegree);
         
