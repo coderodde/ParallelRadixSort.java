@@ -47,13 +47,13 @@ public final class ParallelRadixSort {
      * The array slices smaller than this number of elements will be sorted with
      * merge sort.
      */
-    static final int DEFAULT_MERGESORT_THRESHOLD = 4001;
+    static final int DEFAULT_MERGESORT_THRESHOLD = 307;
     
     /**
      * The array slices smaller than this number of elements will be sorted with
      * insertion sort.
      */
-    static final int DEFAULT_INSERTION_SORT_THRESHOLD = 13;
+    static final int DEFAULT_INSERTION_SORT_THRESHOLD = 17;
     
     /**
      * The minimum workload for a thread.
@@ -63,7 +63,7 @@ public final class ParallelRadixSort {
     /**
      * Minimum merge sort threshold.
      */
-    private static final int MINIMUM_MERGESORT_THRESHOLD = 1;
+    private static final int MINIMUM_MERGESORT_THRESHOLD = 100;
     
     /**
      * Minimum insertion sort threshold.
@@ -73,7 +73,7 @@ public final class ParallelRadixSort {
     /**
      * Minimum thread workload.
      */
-    private static final int MINIMUM_THREAD_WORKLOAD = 1;
+    private static final int MINIMUM_THREAD_WORKLOAD = 14047;
     
     /**
      * The current actual threshold for the insertion sort.
@@ -152,6 +152,7 @@ public final class ParallelRadixSort {
         int rangeLength = toIndex - fromIndex;
         
         if (rangeLength < 2) {
+            // Trivially sorted, return.
             return;
         }
         
@@ -287,9 +288,7 @@ public final class ParallelRadixSort {
         
         int[][] processedMaps = new int[spawnDegree][BUCKETS];
         
-        // On linear data, all processedMaps[i][j] must be 0!
-        
-        // Make the preprocessing map independent of each thread:
+        // Make the preprocessing maps independent of each thread:
         for (int i = 1; i != spawnDegree; i++) {
             int[] partialBucketSizeMap =
                     bucketSizeCounterThreads[i - 1].getLocalBucketSizeMap();
