@@ -356,18 +356,18 @@ public final class ParallelRadixSort {
             }
         }
         
-        int[] testArray = source.clone();
-        
-        Arrays.sort(testArray);
-        
-        for (int i = 0; i != testArray.length; i++) {
-            int sourceElement = target[i];
-            int testElement = testArray[i];
-            
-            if (sourceElement != testElement) {
-                System.out.println("DEBUG: " + sourceElement + " vs. " + testElement + " at index " + i);
-            }
-        }
+//        int[] testArray = source.clone();
+//        
+//        Arrays.sort(testArray);
+//        
+//        for (int i = 0; i != testArray.length; i++) {
+//            int sourceElement = target[i];
+//            int testElement = testArray[i];
+//            
+//            if (sourceElement != testElement) {
+//                System.out.println("DEBUG: " + sourceElement + " vs. " + testElement + " at index " + i);
+//            }
+//        }
         
         if (recursionDepth == DEEPEST_RECURSION_DEPTH) {
             // Nowhere to recur, all bytes are processed. Return.

@@ -1,0 +1,72 @@
+package com.github.coderodde.util;
+
+import java.util.Arrays;
+import java.util.Random;
+
+final class ParallelRadixSortBenchmark {
+    
+    private static final int BENCHMARK_ITERATIONS = 20;
+    private static final int MAXIMUM_ARRAY_SIZE = 50_000_000;
+    private static final int MINIMUM_ARRAY_SIZE = 40_000_000;
+    private static final int MAXIMUM_FROM_INDEX = 1313;
+    private static final int MAXIMUM_SKIP_LAST_ELEMENTS = 1711;
+    
+    public static void main(String[] args) {
+        System.out.println("Warming up...");
+        benchmark(false);
+        System.out.println("Benchmarking...");
+        benchmark(true);
+        System.out.println("Benchmark done!");
+    }
+    
+    private static void benchmark(boolean print) {
+        Random random = new Random();
+        long totalDuration1 = 0L;
+        long totalDuration2 = 0L;
+        
+        for (int iteration = 0; iteration < BENCHMARK_ITERATIONS; iteration++) {
+            int arrayLength = 
+                    MINIMUM_ARRAY_SIZE +-
+                    random.nextInt(MAXIMUM_ARRAY_SIZE - MINIMUM_ARRAY_SIZE + 1);
+                            
+            int[] array1 = Utils.createRandomIntArray(arrayLength, random);
+            int[] array2 = array1.clone();
+            
+            int fromIndex = random.nextInt(MAXIMUM_FROM_INDEX + 1);
+            int toIndex = array1.length -
+                    random.nextInt(MAXIMUM_SKIP_LAST_ELEMENTS + 1);
+            
+            long startTime = System.currentTimeMillis();
+            Arrays.parallelSort(array1, fromIndex, toIndex);
+            long endTime = System.currentTimeMillis();
+            long duration1 = endTime - startTime;
+            totalDuration1 += duration1;
+            
+            startTime = System.currentTimeMillis();
+            ParallelRadixSort.parallelSort(array2, fromIndex, toIndex);
+            endTime = System.currentTimeMillis();
+            long duration2 = endTime - startTime;
+            totalDuration2 += duration2;
+            
+            boolean agreed = Arrays.equals(array1, array2);
+            
+            if (print) {
+                System.out.println(
+                        "Arrays.parallelSort: "
+                                + duration1 
+                                + " ms, ParallelRadixSort.parallelSort: " 
+                                + duration2
+                                + ", agreed: " 
+                                + agreed);
+            }
+        }
+        
+        if (print) {
+            System.out.println(
+                    "Total Arrays.parallelSort duration: " 
+                            + totalDuration1
+                            + ", total ParallelRadixSort.parallelSort: " 
+                            + totalDuration2);
+        }
+    }
+}

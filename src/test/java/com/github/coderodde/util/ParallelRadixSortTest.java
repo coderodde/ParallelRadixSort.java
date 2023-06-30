@@ -11,12 +11,12 @@ public final class ParallelRadixSortTest {
     
     @BeforeClass
     public static void setupBeforeClass() {
-        ParallelRadixSort.setInsertionSortThreshold(-1);
-        ParallelRadixSort.setMergesortThreshold(-1);
-        ParallelRadixSort.setMinimumThreadWorkload(-1);
+//        ParallelRadixSort.setInsertionSortThreshold(-1);
+//        ParallelRadixSort.setMergesortThreshold(-1);
+//        ParallelRadixSort.setMinimumThreadWorkload(-1);
     }
     
-//    @Test
+    @Test
     public void testInsertionSort() {
         Random random = new Random(13L);
         
@@ -33,7 +33,7 @@ public final class ParallelRadixSortTest {
         assertTrue(Arrays.equals(array1, array2));
     }
         
-//    @Test
+    @Test
     public void testMergesort() {
         Random random = new Random(123L);
         
@@ -54,7 +54,7 @@ public final class ParallelRadixSortTest {
         assertTrue(Arrays.equals(array1, array2));
    }
     
-//    @Test
+    @Test
     public void testSerialRadixSort() {
         Random random = new Random(26);
 
@@ -84,20 +84,17 @@ public final class ParallelRadixSortTest {
     public void testParallelRadixSort() {
         Random random = new Random(29);
         
-        final int SIZE = 256;
+        final int SIZE = 5_000_000;
+        final int FROM_INDEX = 13;
+        final int TO_INDEX = SIZE - 17;
         
-        int[] array1 = Utils.createLinearDebugIntArray(SIZE, random);
-//        int[] array1 = Utils.createRandomIntArray(
-//                SIZE, 
-//                Integer.MAX_VALUE - 1,
-//                random);
+        int[] array1 = 
+                Utils.createRandomIntArray(
+                        SIZE, 
+                        Integer.MAX_VALUE, 
+                        random);
         
         int[] array2 = array1.clone();
-        
-//        final int FROM_INDEX = 13;
-//        final int TO_INDEX = SIZE - 15;
-        final int FROM_INDEX = 0;
-        final int TO_INDEX = SIZE;
         
         Arrays.sort(array1, FROM_INDEX, TO_INDEX);
         ParallelRadixSort.parallelSort(
@@ -108,7 +105,7 @@ public final class ParallelRadixSortTest {
         assertTrue(Arrays.equals(array1, array2));
     }
     
-//   @Test
+   @Test
    public void bruteForceTestInsertionsort() {
        final int ITERATIONS = 200;
        Random random = new Random(432);
@@ -153,7 +150,7 @@ public final class ParallelRadixSortTest {
        }
    }
     
-//   @Test
+   @Test
    public void bruteForceTestMergesort() {
        final int ITERATIONS = 200;
        Random random = new Random(3);
