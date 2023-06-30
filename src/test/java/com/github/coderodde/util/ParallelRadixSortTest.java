@@ -84,17 +84,20 @@ public final class ParallelRadixSortTest {
     public void testParallelRadixSort() {
         Random random = new Random(29);
         
-        final int SIZE = 200;
+        final int SIZE = 256;
         
-        int[] array1 = Utils.createRandomIntArray(
-                SIZE, 
-                Integer.MAX_VALUE - 1,
-                random);
+        int[] array1 = Utils.createLinearDebugIntArray(SIZE, random);
+//        int[] array1 = Utils.createRandomIntArray(
+//                SIZE, 
+//                Integer.MAX_VALUE - 1,
+//                random);
         
         int[] array2 = array1.clone();
         
-        final int FROM_INDEX = 13;
-        final int TO_INDEX = SIZE - 15;
+//        final int FROM_INDEX = 13;
+//        final int TO_INDEX = SIZE - 15;
+        final int FROM_INDEX = 0;
+        final int TO_INDEX = SIZE;
         
         Arrays.sort(array1, FROM_INDEX, TO_INDEX);
         ParallelRadixSort.parallelSort(

@@ -1,6 +1,7 @@
 package com.github.coderodde.util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -286,6 +287,8 @@ public final class ParallelRadixSort {
         
         int[][] processedMaps = new int[spawnDegree][BUCKETS];
         
+        // On linear data, all processedMaps[i][j] must be 0!
+        
         // Make the preprocessing map independent of each thread:
         for (int i = 1; i != spawnDegree; i++) {
             int[] partialBucketSizeMap =
@@ -318,7 +321,7 @@ public final class ParallelRadixSort {
                             recursionDepth);
             
             sourceStartIndex += subrangeLength;
-            targetStartIndex += subrangeLength;
+//            targetStartIndex += subrangeLength;
             
             bucketInserterThread.start();
             bucketInserterThreads[i] = bucketInserterThread;
@@ -350,6 +353,19 @@ public final class ParallelRadixSort {
                 throw new RuntimeException(
                         "Could not join a bucket inserter thread.",
                         ex);
+            }
+        }
+        
+        int[] testArray = source.clone();
+        
+        Arrays.sort(testArray);
+        
+        for (int i = 0; i != testArray.length; i++) {
+            int sourceElement = target[i];
+            int testElement = testArray[i];
+            
+            if (sourceElement != testElement) {
+                System.out.println("DEBUG: " + sourceElement + " vs. " + testElement + " at index " + i);
             }
         }
         
