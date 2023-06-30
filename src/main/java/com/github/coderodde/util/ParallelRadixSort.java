@@ -356,19 +356,6 @@ public final class ParallelRadixSort {
             }
         }
         
-//        int[] testArray = source.clone();
-//        
-//        Arrays.sort(testArray);
-//        
-//        for (int i = 0; i != testArray.length; i++) {
-//            int sourceElement = target[i];
-//            int testElement = testArray[i];
-//            
-//            if (sourceElement != testElement) {
-//                System.out.println("DEBUG: " + sourceElement + " vs. " + testElement + " at index " + i);
-//            }
-//        }
-        
         if (recursionDepth == DEEPEST_RECURSION_DEPTH) {
             // Nowhere to recur, all bytes are processed. Return.
             return;
@@ -411,22 +398,24 @@ public final class ParallelRadixSort {
         nonEmptyBucketIndices.shuffle(new Random());
         
         // Distributed the buckets over sorter task lists:
-        int f = 0;
-        int j = 0;
+        int frontIndex = 0;
+        int cursorIndex = 0;
         int listIndex = 0;
         int optimalSubrangeLength = rangeLength / spawnDegree;
         int packed = 0;
-        int sz = nonEmptyBucketIndices.size();
+        int numberOfNonEmptyBuckets = nonEmptyBucketIndices.size();
         
-        while (j != sz) {
-            int bucketKey = nonEmptyBucketIndices.getBucketKey(j++);
+        while (cursorIndex != numberOfNonEmptyBuckets) {
+            int bucketKey = nonEmptyBucketIndices.getBucketKey(cursorIndex++);
             int tmp = globalBucketSizeMap[bucketKey];
             packed += tmp;
             
-            if (packed >= optimalSubrangeLength || j == sz) {
+            if (packed >= optimalSubrangeLength 
+                    || cursorIndex == numberOfNonEmptyBuckets) {
+                
                 packed = 0;
                 
-                for (int i = f; i != j; i++) {
+                for (int i = frontIndex; i != cursorIndex; i++) {
                     int bucketKey2 = nonEmptyBucketIndices.getBucketKey(i);
                     
                     BucketKeyList bucketKeyList = 
@@ -436,7 +425,7 @@ public final class ParallelRadixSort {
                 }
                 
                 listIndex++;
-                f = j;
+                frontIndex = cursorIndex;
             }
         }
         
@@ -557,6 +546,8 @@ public final class ParallelRadixSort {
             bucketSizeMap[bucketIndex]++;
         }
         
+        startIndexMap[0] = targetFromIndex;
+        
         // Compute starting indices for buckets in the target array. This is 
         // actually just an accumulated array of bucketSizeMap, such that
         // startIndexMap[0] = 0, startIndexMap[1] = bucketSizeMap[0], ...,
@@ -571,7 +562,7 @@ public final class ParallelRadixSort {
             int datum = source[i];
             int bucketKey = getBucketIndex(datum, recursionDepth);
             
-            target[targetFromIndex + startIndexMap[bucketKey] + 
+            target[/*targetFromIndex + */startIndexMap[bucketKey] + 
                                       processedMap[bucketKey]++] = datum;
         }
         
@@ -592,8 +583,8 @@ public final class ParallelRadixSort {
                 radixSortImpl(
                         target,
                         source,
-                        targetFromIndex + startIndexMap[i],
-                        sourceFromIndex + startIndexMap[i],
+                        startIndexMap[i],
+                        startIndexMap[i] - targetFromIndex + sourceFromIndex,
                         bucketSizeMap[i],
                         recursionDepth + 1);
             }

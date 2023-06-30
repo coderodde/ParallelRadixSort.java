@@ -6,8 +6,8 @@ import java.util.Random;
 final class ParallelRadixSortBenchmark {
     
     private static final int BENCHMARK_ITERATIONS = 20;
-    private static final int MAXIMUM_ARRAY_SIZE = 50_000_000;
-    private static final int MINIMUM_ARRAY_SIZE = 40_000_000;
+    private static final int MAXIMUM_ARRAY_SIZE = 100_000_000;
+    private static final int MINIMUM_ARRAY_SIZE = 90_000_000;
     private static final int MAXIMUM_FROM_INDEX = 1313;
     private static final int MAXIMUM_SKIP_LAST_ELEMENTS = 1711;
     
@@ -25,6 +25,8 @@ final class ParallelRadixSortBenchmark {
         long totalDuration2 = 0L;
         
         for (int iteration = 0; iteration < BENCHMARK_ITERATIONS; iteration++) {
+            System.gc();
+            
             int arrayLength = 
                     MINIMUM_ARRAY_SIZE +-
                     random.nextInt(MAXIMUM_ARRAY_SIZE - MINIMUM_ARRAY_SIZE + 1);
@@ -56,7 +58,7 @@ final class ParallelRadixSortBenchmark {
                                 + duration1 
                                 + " ms, ParallelRadixSort.parallelSort: " 
                                 + duration2
-                                + ", agreed: " 
+                                + " ms, agreed: " 
                                 + agreed);
             }
         }
