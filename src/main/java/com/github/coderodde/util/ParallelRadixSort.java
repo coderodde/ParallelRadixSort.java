@@ -1,7 +1,6 @@
 package com.github.coderodde.util;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -279,6 +278,7 @@ public final class ParallelRadixSort {
         
         int spawnDegree = Math.min(numberOfNonemptyBuckets, threads);
         int[] startIndexMap = new int[BUCKETS];
+        startIndexMap[0] = targetFromIndex;
         
         for (int i = 1; i != BUCKETS; i++) {
             startIndexMap[i] = startIndexMap[i - 1] 
@@ -301,7 +301,6 @@ public final class ParallelRadixSort {
         }
         
         int sourceStartIndex = sourceFromIndex;
-        int targetStartIndex = targetFromIndex;
         
         BucketInserterThread[] bucketInserterThreads = 
                 new BucketInserterThread[spawnDegree];
@@ -314,14 +313,12 @@ public final class ParallelRadixSort {
                             source,
                             target,
                             sourceStartIndex,
-                            targetStartIndex,
                             startIndexMap,
                             processedMaps[i],
                             subrangeLength,
                             recursionDepth);
             
             sourceStartIndex += subrangeLength;
-//            targetStartIndex += subrangeLength;
             
             bucketInserterThread.start();
             bucketInserterThreads[i] = bucketInserterThread;
@@ -332,7 +329,6 @@ public final class ParallelRadixSort {
                             source,
                             target,
                             sourceStartIndex,
-                            targetStartIndex,
                             startIndexMap,
                             processedMaps[spawnDegree - 1],
                             rangeLength - (spawnDegree - 1) * subrangeLength,
@@ -450,8 +446,11 @@ public final class ParallelRadixSort {
                         new SorterTask(
                                 target,
                                 source,
-                                targetFromIndex + startIndexMap[bucketKey],
-                                sourceStartIndex + startIndexMap[bucketKey], 
+                                startIndexMap[bucketKey],
+                                startIndexMap[bucketKey] - 
+                                        targetFromIndex + 
+                                        sourceFromIndex,
+                                
                                 globalBucketSizeMap[bucketKey],
                                 recursionDepth + 1,
                                 threadCountMap[i]);
@@ -562,8 +561,8 @@ public final class ParallelRadixSort {
             int datum = source[i];
             int bucketKey = getBucketIndex(datum, recursionDepth);
             
-            target[/*targetFromIndex + */startIndexMap[bucketKey] + 
-                                      processedMap[bucketKey]++] = datum;
+            target[startIndexMap[bucketKey] + 
+                    processedMap[bucketKey]++] = datum;
         }
         
         if (recursionDepth == DEEPEST_RECURSION_DEPTH) {
@@ -802,7 +801,6 @@ public final class ParallelRadixSort {
         private final int[] source;
         private final int[] target;
         private final int sourceFromIndex;
-        private final int targetFromIndex;
         private final int[] startIndexMap;
         private final int[] processedMap;
         private final int rangeLength;
@@ -811,7 +809,6 @@ public final class ParallelRadixSort {
         BucketInserterThread(int[] source,
                              int[] target,
                              int sourceFromIndex,
-                             int targetFromIndex,
                              int[] startIndexMap,
                              int[] processedMap,
                              int rangeLength,
@@ -819,7 +816,6 @@ public final class ParallelRadixSort {
             this.source = source;
             this.target = target;
             this.sourceFromIndex = sourceFromIndex;
-            this.targetFromIndex = targetFromIndex;
             this.startIndexMap = startIndexMap;
             this.processedMap = processedMap;
             this.rangeLength = rangeLength;
@@ -834,8 +830,8 @@ public final class ParallelRadixSort {
                 int datum = source[i];
                 int bucketKey = getBucketIndex(datum, recursionDepth);
                 
-                target[targetFromIndex + startIndexMap[bucketKey] + 
-                                          processedMap[bucketKey]++] = datum;
+                target[startIndexMap[bucketKey] + 
+                        processedMap[bucketKey]++] = datum;
             }
         }
     }
