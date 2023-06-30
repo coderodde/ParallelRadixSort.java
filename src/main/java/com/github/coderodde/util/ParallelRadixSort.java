@@ -939,9 +939,5 @@ public final class ParallelRadixSort {
         BucketKeyList getBucketKeyList(int index) {
             return this.lists[index];
         }
-        
-        int size() {
-            return size;
-        }
     }
 }
