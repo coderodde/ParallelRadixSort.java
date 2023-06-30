@@ -4,17 +4,9 @@ import java.util.Arrays;
 import java.util.Random;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public final class ParallelRadixSortTest {
-    
-    @BeforeClass
-    public static void setupBeforeClass() {
-//        ParallelRadixSort.setInsertionSortThreshold(-1);
-//        ParallelRadixSort.setMergesortThreshold(-1);
-//        ParallelRadixSort.setMinimumThreadWorkload(-1);
-    }
     
     @Test
     public void testInsertionSort() {

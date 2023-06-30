@@ -3,7 +3,7 @@ package com.github.coderodde.util;
 import java.util.Arrays;
 import java.util.Random;
 
-final class ParallelRadixSortBenchmark {
+public final class ParallelRadixSortBenchmark {
     
     private static final int BENCHMARK_ITERATIONS = 20;
     private static final int MAXIMUM_ARRAY_SIZE = 100_000_000;
